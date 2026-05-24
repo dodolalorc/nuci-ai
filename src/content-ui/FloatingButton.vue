@@ -154,7 +154,7 @@ import { computed, onMounted, onUnmounted, ref } from "vue"
 
 import type { SmartFavoritesSettings } from "../sdk/types"
 import { KNOWLEDGE_CATEGORIES } from "../types/knowledge"
-import floatingBallIconUrl from "./icon.png"
+import floatingBallIconUrl from "../contents/icon.png"
 
 type FloatingSide = "left" | "right"
 type FloatingAnchor = {

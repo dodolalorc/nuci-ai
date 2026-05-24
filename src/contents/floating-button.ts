@@ -1,7 +1,7 @@
 import type { PlasmoCSConfig } from "plasmo"
 import { createApp } from "vue"
 
-import FloatingButton from "./FloatingButton.vue"
+import FloatingButton from "../content-ui/FloatingButton.vue"
 
 export const config: PlasmoCSConfig = {
     matches: ["http://*/*", "https://*/*"]

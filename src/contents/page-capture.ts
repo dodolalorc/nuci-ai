@@ -28,7 +28,7 @@ import {
   getPageArticleSegments,
   getPageContext
 } from "./capture/extract"
-import PageCaptureOverlay from "./PageCaptureOverlay.vue"
+import PageCaptureOverlay from "../content-ui/PageCaptureOverlay.vue"
 
 export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"]
