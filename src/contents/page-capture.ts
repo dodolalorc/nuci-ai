@@ -821,6 +821,13 @@ window.addEventListener("kc-page-capture-open-sidebar", () => {
   openCaptureSidebarFromFloatingMenu()
 })
 
+window.addEventListener("kc-page-capture-open-ai-dialog", () => {
+  state.aiDialogOpen = true
+  hydrateArticleFields(getPageContext())
+  void hydrateModels()
+  renderOverlay()
+})
+
 window.addEventListener("kc-page-capture-start-element-mode", () => {
   startElementModeFromFloatingMenu()
 })
