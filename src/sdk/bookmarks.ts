@@ -1,8 +1,12 @@
 import {
   getAllCaptureDrafts,
+  getBookmarkUndoOperation,
+  getBookmarkUndoOperations,
   getExperimentEvents,
   getSnippetCollections,
-  redactProviderSecrets
+  redactProviderSecrets,
+  removeBookmarkUndoOperation,
+  saveBookmarkUndoOperation
 } from "~/src/sdk/storage"
 import type {
   ApplyBookmarkPayload,
@@ -10,6 +14,7 @@ import type {
   BookmarkItem,
   BookmarkMoveDecision,
   BookmarkMutationResult,
+  BookmarkUndoResult,
   BulkBookmarkApplyResult,
   ExportSnapshot,
   FolderIndex,
@@ -260,12 +265,25 @@ export async function applyBulkBookmarkDecisions(
   decisions: BookmarkMoveDecision[]
 ): Promise<BulkBookmarkApplyResult> {
   const results: BookmarkMutationResult[] = []
+  const undoEntries: Array<{
+    bookmarkId: string
+    parentId: string
+    index?: number
+  }> = []
 
   for (const decision of decisions) {
     const [bookmark] = await chrome.bookmarks.get(decision.bookmarkId)
 
     if (!bookmark?.url) {
       continue
+    }
+
+    if (bookmark.parentId) {
+      undoEntries.push({
+        bookmarkId: bookmark.id,
+        parentId: bookmark.parentId,
+        index: bookmark.index
+      })
     }
 
     const result = await applyBookmarkDecision({
@@ -291,21 +309,73 @@ export async function applyBulkBookmarkDecisions(
     results.push(result)
   }
 
+  const undoOperationId =
+    undoEntries.length > 0
+      ? `bookmark-undo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      : undefined
+
+  if (undoOperationId) {
+    await saveBookmarkUndoOperation({
+      id: undoOperationId,
+      createdAt: new Date().toISOString(),
+      entries: undoEntries
+    })
+  }
+
   return {
     moved: results.length,
-    results
+    results,
+    undoOperationId
   }
+}
+
+export async function undoBulkBookmarkOperation(
+  operationId: string
+): Promise<BookmarkUndoResult> {
+  const operation = await getBookmarkUndoOperation(operationId)
+  if (!operation) throw new Error("未找到可撤销的书签迁移记录。")
+
+  let restored = 0
+  let skipped = 0
+  for (const entry of [...operation.entries].reverse()) {
+    try {
+      await chrome.bookmarks.move(entry.bookmarkId, {
+        parentId: entry.parentId,
+        index: entry.index
+      })
+      restored += 1
+    } catch {
+      skipped += 1
+    }
+  }
+
+  if (skipped === 0) {
+    await removeBookmarkUndoOperation(operationId)
+  }
+
+  return { restored, skipped }
+}
+
+export async function listBookmarkUndoOperations() {
+  return getBookmarkUndoOperations()
 }
 
 export async function buildExportSnapshot(
   settings: SmartFavoritesSettings,
   folderIndex: FolderIndex
 ): Promise<ExportSnapshot> {
-  const [knowledgeItems, analytics, drafts, collections] = await Promise.all([
+  const [
+    knowledgeItems,
+    analytics,
+    drafts,
+    collections,
+    bookmarkUndoOperations
+  ] = await Promise.all([
     knowledgeStorage.list({ includeArchived: true }),
     getExperimentEvents(),
     getAllCaptureDrafts(),
-    getSnippetCollections()
+    getSnippetCollections(),
+    getBookmarkUndoOperations()
   ])
 
   return {
@@ -317,6 +387,7 @@ export async function buildExportSnapshot(
     analytics,
     folders: folderIndex.folders,
     drafts,
-    collections
+    collections,
+    bookmarkUndoOperations
   }
 }

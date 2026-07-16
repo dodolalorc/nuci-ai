@@ -173,6 +173,14 @@ export const knowledgeStorage = {
       items = items.filter((item) => item.sourceType === query.sourceType)
     }
 
+    if (query.createdAfter !== undefined) {
+      items = items.filter((item) => item.createdAt >= query.createdAfter!)
+    }
+
+    if (query.createdBefore !== undefined) {
+      items = items.filter((item) => item.createdAt <= query.createdBefore!)
+    }
+
     if (query.favorite !== undefined) {
       items = items.filter((item) => Boolean(item.favorite) === query.favorite)
     }

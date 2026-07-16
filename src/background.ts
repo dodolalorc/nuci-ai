@@ -3,7 +3,9 @@ import {
   applyBulkBookmarkDecisions,
   buildExportSnapshot,
   buildFolderIndex,
-  listBookmarks
+  listBookmarks,
+  listBookmarkUndoOperations,
+  undoBulkBookmarkOperation
 } from "~/src/sdk/bookmarks"
 import { recommendFolders } from "~/src/sdk/folder-recommender"
 import { KNOWLEDGE_MESSAGE } from "~/src/sdk/knowledgeMessages"
@@ -183,6 +185,12 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
       return handleApplyBulkBookmarks(
         message.payload as BulkBookmarkApplyPayload
       )
+    case "bookmarks-collector/undo-bulk-bookmarks":
+      return undoBulkBookmarkOperation(
+        (message.payload as { operationId: string }).operationId
+      )
+    case "bookmarks-collector/list-bookmark-undo-operations":
+      return listBookmarkUndoOperations()
     case "bookmarks-collector/open-extension-page":
       return handleOpenExtensionPage(
         message.payload as ExtensionPageOpenPayload

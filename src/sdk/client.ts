@@ -7,6 +7,8 @@ import type {
   BookmarkItem,
   BookmarkMoveDecision,
   BookmarkMutationResult,
+  BookmarkUndoOperation,
+  BookmarkUndoResult,
   BulkBookmarkApplyResult,
   CapturedSnippet,
   CapturePageResponse,
@@ -163,6 +165,19 @@ export class SmartFavoritesSDK {
     return sendRuntimeMessage<BulkBookmarkApplyResult>(
       "bookmarks-collector/apply-bulk-bookmarks",
       { decisions }
+    )
+  }
+
+  async undoBulkBookmarkRecommendations(operationId: string) {
+    return sendRuntimeMessage<BookmarkUndoResult>(
+      "bookmarks-collector/undo-bulk-bookmarks",
+      { operationId }
+    )
+  }
+
+  async listBookmarkUndoOperations() {
+    return sendRuntimeMessage<BookmarkUndoOperation[]>(
+      "bookmarks-collector/list-bookmark-undo-operations"
     )
   }
 

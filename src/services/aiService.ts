@@ -46,6 +46,23 @@ ${content.slice(0, 5000)}
 }
 `
 
+const AI_MAX_ATTEMPTS = 2
+
+/** Retries transient provider failures once while keeping parsing failures visible. */
+export async function withAiRetry<T>(operation: () => Promise<T>): Promise<T> {
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= AI_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await operation()
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("AI 请求失败")
+}
+
 export function parseAiJsonResponse(content: string): unknown {
   const normalized = content
     .trim()
@@ -150,16 +167,18 @@ export const aiService = {
       throw new Error("未配置 AI 模型，请前往设置页配置 API Key。")
     }
 
-    const result = await generateText({
-      apiKey: provider.apiKey,
-      baseURL: provider.baseUrl,
-      model: provider.model,
-      temperature: 0.3,
-      messages: [
-        { role: "system", content: QUICK_SAVE_SYSTEM_PROMPT },
-        { role: "user", content: QUICK_SAVE_USER_PROMPT(title, content) }
-      ]
-    })
+    const result = await withAiRetry(() =>
+      generateText({
+        apiKey: provider.apiKey,
+        baseURL: provider.baseUrl,
+        model: provider.model,
+        temperature: 0.3,
+        messages: [
+          { role: "system", content: QUICK_SAVE_SYSTEM_PROMPT },
+          { role: "user", content: QUICK_SAVE_USER_PROMPT(title, content) }
+        ]
+      })
+    )
 
     return normalizeQuickMeta(parseAiJsonResponse(result.text))
   },
@@ -175,16 +194,18 @@ export const aiService = {
       throw new Error("未配置 AI 模型，请前往设置页配置 API Key。")
     }
 
-    const result = await generateText({
-      apiKey: provider.apiKey,
-      baseURL: provider.baseUrl,
-      model: provider.model,
-      temperature: 0.3,
-      messages: [
-        { role: "system", content: DEEP_NOTE_SYSTEM_PROMPT },
-        { role: "user", content: DEEP_NOTE_USER_PROMPT(title, content) }
-      ]
-    })
+    const result = await withAiRetry(() =>
+      generateText({
+        apiKey: provider.apiKey,
+        baseURL: provider.baseUrl,
+        model: provider.model,
+        temperature: 0.3,
+        messages: [
+          { role: "system", content: DEEP_NOTE_SYSTEM_PROMPT },
+          { role: "user", content: DEEP_NOTE_USER_PROMPT(title, content) }
+        ]
+      })
+    )
 
     return normalizeDeepNote(parseAiJsonResponse(result.text))
   },

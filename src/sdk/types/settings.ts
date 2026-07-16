@@ -3,6 +3,7 @@ import type { KnowledgeItem } from "~/src/types/knowledge"
 import type { ExperimentEvent } from "./analytics"
 import type { BookmarkFolder, SnippetCollectionState } from "./bookmarks"
 import type { PageCaptureDraft } from "./page"
+import type { BookmarkUndoOperation } from "./recommendation"
 
 export interface AiProviderSettings {
   baseUrl: string
@@ -56,6 +57,7 @@ export interface ExportSnapshot {
   folders: BookmarkFolder[]
   drafts: PageCaptureDraft[]
   collections: SnippetCollectionState
+  bookmarkUndoOperations?: BookmarkUndoOperation[]
 }
 
 export interface ImportSnapshotResult {
@@ -65,4 +67,5 @@ export interface ImportSnapshotResult {
   collectionFolderCount: number
   collectionItemCount: number
   analyticsCount?: number
+  bookmarkUndoOperationCount?: number
 }

@@ -12,16 +12,30 @@ const items = ref<KnowledgeItem[]>([])
 const isLoading = ref(true)
 const keyword = ref("")
 const selectedCategory = ref("")
+const selectedSourceType = ref<"" | KnowledgeItem["sourceType"]>("")
+const createdAfter = ref("")
+const createdBefore = ref("")
 const selectedItem = ref<KnowledgeItem | null>(null)
 const statusMsg = ref("")
 const isDeleting = ref(false)
 const isRetryingAi = ref(false)
+const isEditing = ref(false)
+const editTitle = ref("")
+const editSummary = ref("")
+const editTags = ref("")
 
 const categories = ["", ...KNOWLEDGE_CATEGORIES]
 
 const query = computed<KnowledgeQuery>(() => ({
   keyword: keyword.value || undefined,
   category: selectedCategory.value || undefined,
+  sourceType: selectedSourceType.value || undefined,
+  createdAfter: createdAfter.value
+    ? new Date(`${createdAfter.value}T00:00:00`).getTime()
+    : undefined,
+  createdBefore: createdBefore.value
+    ? new Date(`${createdBefore.value}T23:59:59.999`).getTime()
+    : undefined,
   orderBy: "createdAt",
   orderDir: "desc"
 }))
@@ -40,14 +54,44 @@ async function loadItems() {
   }
 }
 
-watch([keyword, selectedCategory], () => {
-  void loadItems()
-})
+watch(
+  [keyword, selectedCategory, selectedSourceType, createdAfter, createdBefore],
+  () => {
+    void loadItems()
+  }
+)
 
 onMounted(loadItems)
 
 function selectItem(item: KnowledgeItem) {
   selectedItem.value = item
+  isEditing.value = false
+}
+
+function beginEdit(item: KnowledgeItem) {
+  editTitle.value = item.title
+  editSummary.value = item.summary ?? ""
+  editTags.value = item.tags.join(", ")
+  isEditing.value = true
+}
+
+async function saveEdit(item: KnowledgeItem) {
+  const updated = await sendKnowledgeMessage(KNOWLEDGE_MESSAGE.update, {
+    id: item.id,
+    title: editTitle.value.trim() || item.title,
+    summary: editSummary.value.trim() || undefined,
+    tags: editTags.value
+      .split(/[,，]/)
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .slice(0, 12)
+  })
+  if (!updated) throw new Error("知识条目不存在")
+  const index = items.value.findIndex((entry) => entry.id === item.id)
+  if (index !== -1) items.value[index] = updated
+  selectedItem.value = updated
+  isEditing.value = false
+  statusMsg.value = "已保存编辑"
 }
 
 function closeDetail() {
@@ -121,6 +165,18 @@ async function exportMarkdown(item: KnowledgeItem) {
   URL.revokeObjectURL(url)
 }
 
+function exportJson(item: KnowledgeItem) {
+  const blob = new Blob([JSON.stringify(item, null, 2)], {
+    type: "application/json"
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `${item.title.slice(0, 40).replace(/[/\\?%*:|"<>]/g, "_")}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 function formatDate(ts: number) {
   return new Date(ts).toLocaleString("zh-CN", {
     year: "numeric",
@@ -147,6 +203,14 @@ function formatDate(ts: number) {
           {{ cat }}
         </option>
       </select>
+      <select v-model="selectedSourceType" class="kb__select">
+        <option value="">全部来源</option>
+        <option value="page">网页</option>
+        <option value="selection">划线</option>
+        <option value="bookmark">书签</option>
+      </select>
+      <input v-model="createdAfter" class="kb__select" type="date" />
+      <input v-model="createdBefore" class="kb__select" type="date" />
     </div>
 
     <div v-if="statusMsg" class="kb__status">{{ statusMsg }}</div>
@@ -235,7 +299,24 @@ function formatDate(ts: number) {
             }}</span>
           </div>
 
-          <div v-if="selectedItem.summary" class="kb__detail-section">
+          <template v-if="isEditing">
+            <label class="kb__detail-section">
+              <div class="kb__detail-section-title">标题</div>
+              <input v-model="editTitle" class="kb__edit-input" />
+            </label>
+            <label class="kb__detail-section">
+              <div class="kb__detail-section-title">摘要</div>
+              <textarea
+                v-model="editSummary"
+                class="kb__edit-input kb__edit-textarea" />
+            </label>
+            <label class="kb__detail-section">
+              <div class="kb__detail-section-title">标签（逗号分隔）</div>
+              <input v-model="editTags" class="kb__edit-input" />
+            </label>
+          </template>
+
+          <div v-else-if="selectedItem.summary" class="kb__detail-section">
             <div class="kb__detail-section-title">摘要</div>
             <div class="kb__detail-text">{{ selectedItem.summary }}</div>
           </div>
@@ -273,6 +354,18 @@ function formatDate(ts: number) {
 
         <div class="kb__detail-footer">
           <button
+            v-if="isEditing"
+            class="kb__btn kb__btn--secondary"
+            @click="saveEdit(selectedItem)">
+            保存编辑
+          </button>
+          <button
+            v-else
+            class="kb__btn kb__btn--secondary"
+            @click="beginEdit(selectedItem)">
+            编辑
+          </button>
+          <button
             v-if="selectedItem.aiStatus === 'failed'"
             class="kb__btn kb__btn--secondary"
             :disabled="isRetryingAi"
@@ -283,6 +376,11 @@ function formatDate(ts: number) {
             class="kb__btn kb__btn--secondary"
             @click="exportMarkdown(selectedItem)">
             导出 Markdown
+          </button>
+          <button
+            class="kb__btn kb__btn--secondary"
+            @click="exportJson(selectedItem)">
+            导出 JSON
           </button>
           <button
             class="kb__btn kb__btn--danger"

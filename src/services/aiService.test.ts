@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest"
 import {
   normalizeDeepNote,
   normalizeQuickMeta,
-  parseAiJsonResponse
+  parseAiJsonResponse,
+  withAiRetry
 } from "./aiService"
 
 describe("parseAiJsonResponse", () => {
@@ -51,5 +52,19 @@ describe("AI response normalizers", () => {
       learningNotes: "",
       difficulty: "intermediate"
     })
+  })
+})
+
+describe("withAiRetry", () => {
+  it("retries a failed provider request once", async () => {
+    let attempts = 0
+    await expect(
+      withAiRetry(async () => {
+        attempts += 1
+        if (attempts === 1) throw new Error("temporary")
+        return "ok"
+      })
+    ).resolves.toBe("ok")
+    expect(attempts).toBe(2)
   })
 })

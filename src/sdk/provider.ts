@@ -13,6 +13,7 @@ import type {
   SegmentSelectionResult,
   SmartFavoritesSettings
 } from "~/src/sdk/types"
+import { withAiRetry } from "~/src/services/aiService"
 
 type SnippetAnalysisResult = {
   summary: string
@@ -28,12 +29,12 @@ function resolveProvider(
   const candidates = settings.providers?.length
     ? settings.providers
     : [
-      {
-        id: settings.activeProviderId || "default-provider",
-        label: settings.provider.model || "默认模型",
-        ...settings.provider
-      }
-    ]
+        {
+          id: settings.activeProviderId || "default-provider",
+          label: settings.provider.model || "默认模型",
+          ...settings.provider
+        }
+      ]
 
   return (
     candidates.find((provider) => provider.id === providerId) ??
@@ -42,7 +43,9 @@ function resolveProvider(
   )
 }
 
-function hasProviderConfig(provider: Pick<AiModelProfile, "apiKey" | "baseUrl" | "model">) {
+function hasProviderConfig(
+  provider: Pick<AiModelProfile, "apiKey" | "baseUrl" | "model">
+) {
   return Boolean(provider.apiKey && provider.baseUrl && provider.model)
 }
 
@@ -228,7 +231,11 @@ function isLikelyNounKeyword(token: string): boolean {
     return false
   }
 
-  if (/^(is|are|was|were|be|been|being|do|does|did|can|may|must|should)$/i.test(token)) {
+  if (
+    /^(is|are|was|were|be|been|being|do|does|did|can|may|must|should)$/i.test(
+      token
+    )
+  ) {
     return false
   }
 
@@ -276,7 +283,9 @@ function normalizeSnippetKeywords(
 
   const fallbackKeywords = extractKeywordsFromText(sourceText)
 
-  const merged = Array.from(new Set([...fromTags, ...fromSummary, ...fallbackKeywords]))
+  const merged = Array.from(
+    new Set([...fromTags, ...fromSummary, ...fallbackKeywords])
+  )
 
   const resolved = merged.slice(0, 8)
   return resolved.length >= 4 ? resolved : fallbackKeywords.slice(0, 8)
@@ -293,23 +302,25 @@ export const analyzeSnippetContent = async (
   }
 
   try {
-    const result = await generateText({
-      apiKey: provider.apiKey,
-      baseURL: provider.baseUrl,
-      model: provider.model,
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是网页片段关键词提炼助手。请输出 JSON：{summary: string, tags: string[]}。summary 只允许 3-6 个关键词，用中文逗号分隔；tags 输出 3-6 个关键词。严禁输出完整句子和解释。"
-        },
-        {
-          role: "user",
-          content: `请提炼这段文本的关键词：\n${text.slice(0, 2200)}`
-        }
-      ]
-    })
+    const result = await withAiRetry(() =>
+      generateText({
+        apiKey: provider.apiKey,
+        baseURL: provider.baseUrl,
+        model: provider.model,
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content:
+              "你是网页片段关键词提炼助手。请输出 JSON：{summary: string, tags: string[]}。summary 只允许 3-6 个关键词，用中文逗号分隔；tags 输出 3-6 个关键词。严禁输出完整句子和解释。"
+          },
+          {
+            role: "user",
+            content: `请提炼这段文本的关键词：\n${text.slice(0, 2200)}`
+          }
+        ]
+      })
+    )
 
     const parsed = parseJsonResponse(result.text || "") as {
       summary?: string
@@ -339,30 +350,32 @@ export async function extractAiRecommendations(
 ): Promise<RecommendationResult> {
   const provider = resolveProvider(settings)
 
-  const result = await generateText({
-    apiKey: provider.apiKey,
-    baseURL: provider.baseUrl,
-    model: provider.model,
-    temperature: 0.2,
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "bookmark_folder_suggestions",
-        strict: true,
-        schema: suggestionSchema
-      }
-    },
-    messages: [
-      {
-        role: "system",
-        content: settings.prompts.system
+  const result = await withAiRetry(() =>
+    generateText({
+      apiKey: provider.apiKey,
+      baseURL: provider.baseUrl,
+      model: provider.model,
+      temperature: 0.2,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "bookmark_folder_suggestions",
+          strict: true,
+          schema: suggestionSchema
+        }
       },
-      {
-        role: "user",
-        content: renderTemplate(settings.prompts.template, input, folderIndex)
-      }
-    ]
-  })
+      messages: [
+        {
+          role: "system",
+          content: settings.prompts.system
+        },
+        {
+          role: "user",
+          content: renderTemplate(settings.prompts.template, input, folderIndex)
+        }
+      ]
+    })
+  )
   const parsed = parseJsonResponse(result.text || "")
 
   const suggestions: FolderSuggestion[] = []
@@ -403,7 +416,11 @@ export async function extractAiRecommendations(
   }
 }
 
-function buildDigestPrompt(page: PageContext, content: string, prompt?: string) {
+function buildDigestPrompt(
+  page: PageContext,
+  content: string,
+  prompt?: string
+) {
   return [
     "请把这个网页压缩为关键词结果，便于后续模型快速消费。",
     "输出要求：",
@@ -507,7 +524,9 @@ function buildHeuristicDigest(payload: PageDigestRequest): string {
     .sort((a, b) => b[1] - a[1])
     .map(([token]) => token)
 
-  const keywords = Array.from(new Set([...seedKeywords, ...freqKeywords])).slice(0, 10)
+  const keywords = Array.from(
+    new Set([...seedKeywords, ...freqKeywords])
+  ).slice(0, 10)
 
   if (payload.prompt?.trim()) {
     keywords.push(payload.prompt.trim())
@@ -537,23 +556,29 @@ export async function summarizePageContent(
   }
 
   try {
-    const result = await generateText({
-      apiKey: provider.apiKey,
-      baseURL: provider.baseUrl,
-      model: provider.model,
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是网页关键词提炼助手。仅输出关键词，不输出句子、解释、标题或编号。"
-        },
-        {
-          role: "user",
-          content: buildDigestPrompt(payload.page, digestContent, payload.prompt)
-        }
-      ]
-    })
+    const result = await withAiRetry(() =>
+      generateText({
+        apiKey: provider.apiKey,
+        baseURL: provider.baseUrl,
+        model: provider.model,
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content:
+              "你是网页关键词提炼助手。仅输出关键词，不输出句子、解释、标题或编号。"
+          },
+          {
+            role: "user",
+            content: buildDigestPrompt(
+              payload.page,
+              digestContent,
+              payload.prompt
+            )
+          }
+        ]
+      })
+    )
 
     const content = result.text?.trim() || fallback
     return {
@@ -602,7 +627,9 @@ const segmentSelectionSchema = {
   }
 } as const
 
-function heuristicSelectSegments(segments: PageDigestSegment[]): SegmentSelectionResult {
+function heuristicSelectSegments(
+  segments: PageDigestSegment[]
+): SegmentSelectionResult {
   const selectedSegmentIds = segments
     .filter((segment) => {
       const text = segment.text.toLowerCase()
@@ -646,36 +673,38 @@ export async function selectRelevantSegments(
   }
 
   try {
-    const result = await generateText({
-      apiKey: provider.apiKey,
-      baseURL: provider.baseUrl,
-      model: provider.model,
-      temperature: 0.2,
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "segment_selection",
-          strict: true,
-          schema: segmentSelectionSchema
-        }
-      },
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是网页正文清洗助手。请从段落列表中保留与文章主线强相关的正文，剔除广告、导流、版权尾注、无关推荐、重复说明等内容。输出 JSON。"
+    const result = await withAiRetry(() =>
+      generateText({
+        apiKey: provider.apiKey,
+        baseURL: provider.baseUrl,
+        model: provider.model,
+        temperature: 0.2,
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "segment_selection",
+            strict: true,
+            schema: segmentSelectionSchema
+          }
         },
-        {
-          role: "user",
-          content: segments
-            .map(
-              (segment, index) =>
-                `[${segment.id}] 段落 ${index + 1}\n${segment.text.slice(0, 1800)}`
-            )
-            .join("\n\n")
-        }
-      ]
-    })
+        messages: [
+          {
+            role: "system",
+            content:
+              "你是网页正文清洗助手。请从段落列表中保留与文章主线强相关的正文，剔除广告、导流、版权尾注、无关推荐、重复说明等内容。输出 JSON。"
+          },
+          {
+            role: "user",
+            content: segments
+              .map(
+                (segment, index) =>
+                  `[${segment.id}] 段落 ${index + 1}\n${segment.text.slice(0, 1800)}`
+              )
+              .join("\n\n")
+          }
+        ]
+      })
+    )
 
     const parsed = parseJsonResponse(result.text || "") as {
       selectedSegmentIds?: string[]
@@ -685,8 +714,8 @@ export async function selectRelevantSegments(
       }>
     }
 
-    const selectedSegmentIds = (parsed.selectedSegmentIds ?? []).filter((segmentId) =>
-      segments.some((segment) => segment.id === segmentId)
+    const selectedSegmentIds = (parsed.selectedSegmentIds ?? []).filter(
+      (segmentId) => segments.some((segment) => segment.id === segmentId)
     )
 
     if (selectedSegmentIds.length === 0) {
@@ -698,9 +727,8 @@ export async function selectRelevantSegments(
       providerId: provider.id,
       selectedSegmentIds,
       reasons: (parsed.reasons ?? [])
-        .filter(
-          (item): item is { segmentId: string; reason: string } =>
-            Boolean(item.segmentId && item.reason)
+        .filter((item): item is { segmentId: string; reason: string } =>
+          Boolean(item.segmentId && item.reason)
         )
         .map((item) => ({
           segmentId: item.segmentId,

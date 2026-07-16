@@ -56,6 +56,8 @@ export interface KnowledgeQuery {
   category?: string
   tags?: string[]
   sourceType?: KnowledgeItem["sourceType"]
+  createdAfter?: number
+  createdBefore?: number
   favorite?: boolean
   archived?: boolean
   includeArchived?: boolean

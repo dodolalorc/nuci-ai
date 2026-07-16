@@ -6,6 +6,7 @@ import {
 import { tokenize, unique } from "~/src/sdk/text"
 import type {
   AiModelProfile,
+  BookmarkUndoOperation,
   CapturedSnippet,
   ExperimentEvent,
   ExportSnapshot,
@@ -264,6 +265,9 @@ export async function importSnapshotData(
       ])
   )
   const collections = normalizeCollections(snapshot.collections)
+  const bookmarkUndoOperations = Array.isArray(snapshot.bookmarkUndoOperations)
+    ? snapshot.bookmarkUndoOperations.slice(0, 20)
+    : []
 
   await chrome.storage.local.set({
     [STORAGE_KEYS.settings]: normalizedSettings,
@@ -271,7 +275,8 @@ export async function importSnapshotData(
     [STORAGE_KEYS.knowledgeItems]: knowledgeItems as KnowledgeItem[],
     [STORAGE_KEYS.analytics]: analytics,
     [STORAGE_KEYS.drafts]: draftMap,
-    [STORAGE_KEYS.collections]: collections
+    [STORAGE_KEYS.collections]: collections,
+    [STORAGE_KEYS.bookmarkUndoOperations]: bookmarkUndoOperations
   })
 
   return {
@@ -280,12 +285,52 @@ export async function importSnapshotData(
     draftCount: Object.keys(draftMap).length,
     collectionFolderCount: collections.folders.length,
     collectionItemCount: collections.items.length,
-    analyticsCount: analytics.length
+    analyticsCount: analytics.length,
+    bookmarkUndoOperationCount: bookmarkUndoOperations.length
   }
 }
 
 export async function getExperimentEvents(): Promise<ExperimentEvent[]> {
   return getLocal<ExperimentEvent[]>(STORAGE_KEYS.analytics, [])
+}
+
+export async function saveBookmarkUndoOperation(
+  operation: BookmarkUndoOperation
+) {
+  const current = await getLocal<BookmarkUndoOperation[]>(
+    STORAGE_KEYS.bookmarkUndoOperations,
+    []
+  )
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.bookmarkUndoOperations]: [operation, ...current].slice(0, 20)
+  })
+}
+
+export async function getBookmarkUndoOperation(id: string) {
+  const operations = await getLocal<BookmarkUndoOperation[]>(
+    STORAGE_KEYS.bookmarkUndoOperations,
+    []
+  )
+  return operations.find((operation) => operation.id === id) ?? null
+}
+
+export async function getBookmarkUndoOperations() {
+  return getLocal<BookmarkUndoOperation[]>(
+    STORAGE_KEYS.bookmarkUndoOperations,
+    []
+  )
+}
+
+export async function removeBookmarkUndoOperation(id: string) {
+  const operations = await getLocal<BookmarkUndoOperation[]>(
+    STORAGE_KEYS.bookmarkUndoOperations,
+    []
+  )
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.bookmarkUndoOperations]: operations.filter(
+      (operation) => operation.id !== id
+    )
+  })
 }
 
 export async function getSnippetCollections(): Promise<SnippetCollectionState> {

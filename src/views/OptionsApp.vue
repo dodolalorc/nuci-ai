@@ -13,6 +13,7 @@ import { getProviderConfigNotice, resolveProvider } from "../sdk/provider"
 import type {
   AiModelProfile,
   BookmarkMoveDecision,
+  BookmarkUndoOperation,
   ExportSnapshot,
   HistoryRecommendationItem,
   SmartFavoritesSettings,
@@ -81,6 +82,7 @@ const tab = ref<"settings" | "history" | "knowledge" | "knowledge-base">(
 )
 const historyItems = ref<HistoryRecommendationItem[]>([])
 const selectedIds = ref<string[]>([])
+const bookmarkUndoOperations = ref<BookmarkUndoOperation[]>([])
 const historyStatus = ref("正在加载历史书签推荐…")
 const collections = ref<SnippetCollectionState>({
   folders: [],
@@ -89,6 +91,9 @@ const collections = ref<SnippetCollectionState>({
 const knowledgeItems = ref<KnowledgeItem[]>([])
 const knowledgeStatus = ref("正在加载知识条目…")
 const knowledgeQuery = ref("")
+const knowledgeSourceFilter = ref<"" | KnowledgeItem["sourceType"]>("")
+const knowledgeDateFrom = ref("")
+const knowledgeDateTo = ref("")
 const collectionsStatus = ref("正在加载收藏夹…")
 const showApiKey = ref(false)
 const activeFolderId = ref("uncategorized")
@@ -135,25 +140,38 @@ const hasAnyManagedContent = computed(
 
 const filteredKnowledgeItems = computed(() => {
   const query = knowledgeQuery.value.trim().toLowerCase()
-  if (!query) {
-    return knowledgeItems.value
-  }
+  const from = knowledgeDateFrom.value
+    ? new Date(`${knowledgeDateFrom.value}T00:00:00`).getTime()
+    : undefined
+  const to = knowledgeDateTo.value
+    ? new Date(`${knowledgeDateTo.value}T23:59:59.999`).getTime()
+    : undefined
 
-  return knowledgeItems.value.filter((record) =>
-    [
-      record.title,
-      record.url,
-      record.category,
-      record.subCategory ?? "",
-      record.tags.join(" "),
-      record.summary ?? "",
-      record.learningNotes ?? "",
-      record.content
-    ]
-      .join("\n")
-      .toLowerCase()
-      .includes(query)
-  )
+  return knowledgeItems.value.filter((record) => {
+    const matchesQuery =
+      !query ||
+      [
+        record.title,
+        record.url,
+        record.category,
+        record.subCategory ?? "",
+        record.tags.join(" "),
+        record.summary ?? "",
+        record.learningNotes ?? "",
+        record.content
+      ]
+        .join("\n")
+        .toLowerCase()
+        .includes(query)
+
+    return (
+      matchesQuery &&
+      (!knowledgeSourceFilter.value ||
+        record.sourceType === knowledgeSourceFilter.value) &&
+      (from === undefined || record.createdAt >= from) &&
+      (to === undefined || record.createdAt <= to)
+    )
+  })
 })
 
 const activeProvider = computed(() => {
@@ -214,6 +232,7 @@ const knowledgeTagDistribution = computed(() =>
 onMounted(() => {
   void loadSettings()
   void refreshHistory()
+  void loadBookmarkUndoOperations()
   void loadCollections()
   void loadKnowledgeRecords()
 
@@ -299,6 +318,36 @@ const downloadJson = (snapshot: ExportSnapshot) => {
   URL.revokeObjectURL(url)
 }
 
+const downloadKnowledgeItem = (
+  record: KnowledgeItem,
+  format: "json" | "md"
+) => {
+  const isMarkdown = format === "md"
+  const markdown = [
+    `# ${record.title}`,
+    "",
+    `- 来源: ${record.url}`,
+    `- 分类: ${record.subCategory || record.category || "未分类"}`,
+    `- 标签: ${record.tags.join(", ") || "无"}`,
+    "",
+    record.summary ? "## 摘要\n\n" + record.summary : "",
+    record.learningNotes ? "## 学习笔记\n\n" + record.learningNotes : "",
+    record.content ? "## 内容\n\n" + record.content : ""
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+  const blob = new Blob(
+    [isMarkdown ? markdown : JSON.stringify(record, null, 2)],
+    { type: isMarkdown ? "text/markdown;charset=utf-8" : "application/json" }
+  )
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = `knowledge-${record.id}.${format}`
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
 const exportBackup = async () => {
   const snapshot = await sdk.exportSnapshot()
   downloadJson(snapshot)
@@ -352,6 +401,10 @@ const refreshHistory = async () => {
       : "当前没有可迁移的历史推荐。"
 }
 
+const loadBookmarkUndoOperations = async () => {
+  bookmarkUndoOperations.value = await sdk.listBookmarkUndoOperations()
+}
+
 const applySelected = async () => {
   if (selectedDecisions.value.length === 0) {
     historyStatus.value = "先勾选至少一条推荐记录。"
@@ -364,6 +417,7 @@ const applySelected = async () => {
   const result = await sdk.applyBulkBookmarkRecommendations(
     selectedDecisions.value
   )
+  await loadBookmarkUndoOperations()
   await Promise.all(
     selectedItems.map((item, index) =>
       sdk.recordExperimentEvent({
@@ -389,6 +443,20 @@ const applySelected = async () => {
   )
   historyStatus.value = `已迁移 ${result.moved} 条书签。`
   await Promise.all([refreshHistory(), loadKnowledgeRecords()])
+}
+
+const undoLastMigration = async () => {
+  const [latestOperation] = bookmarkUndoOperations.value
+  if (!latestOperation) {
+    return
+  }
+
+  const result = await sdk.undoBulkBookmarkRecommendations(latestOperation.id)
+  await Promise.all([refreshHistory(), loadBookmarkUndoOperations()])
+  historyStatus.value =
+    result.skipped > 0
+      ? `已撤销 ${result.restored} 条书签，${result.skipped} 条因原目录不存在未能恢复。`
+      : `已撤销 ${result.restored} 条书签迁移。`
 }
 
 const toggleSelected = (id: string) => {
@@ -987,6 +1055,12 @@ const distributionStyle = (ratio: number) => ({
             <font-awesome-icon icon="check" />
             应用选中项
           </BaseButton>
+          <BaseButton
+            v-if="bookmarkUndoOperations.length"
+            variant="secondary"
+            @click="undoLastMigration">
+            撤销迁移
+          </BaseButton>
         </div>
       </BaseCard>
 
@@ -1233,6 +1307,14 @@ const distributionStyle = (ratio: number) => ({
             v-model="knowledgeQuery"
             class="field"
             placeholder="搜索标题、标签、来源网址、分类、摘要或正文" />
+          <select v-model="knowledgeSourceFilter" class="field">
+            <option value="">所有来源</option>
+            <option value="page">网页</option>
+            <option value="selection">划线</option>
+            <option value="bookmark">书签</option>
+          </select>
+          <input v-model="knowledgeDateFrom" class="field" type="date" />
+          <input v-model="knowledgeDateTo" class="field" type="date" />
           <div class="status">
             当前显示 {{ filteredKnowledgeItems.length }} /
             {{ knowledgeItems.length }} 条
@@ -1275,6 +1357,14 @@ const distributionStyle = (ratio: number) => ({
         <div v-if="record.content" class="knowledge-block">
           <div class="knowledge-label">内容摘录</div>
           <div class="knowledge-quote">{{ record.content.slice(0, 500) }}</div>
+        </div>
+        <div class="button-row knowledge-actions">
+          <BaseButton @click="downloadKnowledgeItem(record, 'md')">
+            导出 Markdown
+          </BaseButton>
+          <BaseButton @click="downloadKnowledgeItem(record, 'json')">
+            导出 JSON
+          </BaseButton>
         </div>
       </BaseCard>
     </template>

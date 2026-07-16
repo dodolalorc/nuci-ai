@@ -13,7 +13,8 @@ export const STORAGE_KEYS = {
   analytics: "bookmarks-collector/analytics",
   drafts: "bookmarks-collector/drafts",
   collections: "bookmarks-collector/collections",
-  recommendationFeedback: "bookmarks-collector/recommendation-feedback"
+  recommendationFeedback: "bookmarks-collector/recommendation-feedback",
+  bookmarkUndoOperations: "bookmarks-collector/bookmark-undo-operations"
 } as const
 
 export const DEFAULT_SYSTEM_PROMPT =
