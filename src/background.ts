@@ -22,7 +22,6 @@ import {
   deleteSnippetFolder,
   getCaptureDraft,
   getExperimentEvents,
-  getKnowledgeRecords,
   getRecommendationFeedback,
   getSettings,
   getSnippetCollections,
@@ -190,8 +189,6 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
       )
     case "bookmarks-collector/get-snippet-collections":
       return getSnippetCollections()
-    case "bookmarks-collector/get-knowledge-records":
-      return getKnowledgeRecords()
     case "bookmarks-collector/get-experiment-events":
       return getExperimentEvents()
     case "bookmarks-collector/record-experiment-event":

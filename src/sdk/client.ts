@@ -20,7 +20,6 @@ import type {
   ExportSnapshot,
   HistoryRecommendationItem,
   ImportSnapshotResult,
-  KnowledgeRecord,
   MoveCollectionItemPayload,
   PageCaptureDraft,
   PageDigestRequest,
@@ -184,12 +183,6 @@ export class SmartFavoritesSDK {
   async getSnippetCollections() {
     return sendRuntimeMessage<SnippetCollectionState>(
       "bookmarks-collector/get-snippet-collections"
-    )
-  }
-
-  async getKnowledgeRecords() {
-    return sendRuntimeMessage<KnowledgeRecord[]>(
-      "bookmarks-collector/get-knowledge-records"
     )
   }
 

@@ -284,10 +284,6 @@ export async function importSnapshotData(
   }
 }
 
-export async function getKnowledgeRecords(): Promise<KnowledgeRecord[]> {
-  return getLocal<KnowledgeRecord[]>(STORAGE_KEYS.knowledge, [])
-}
-
 export async function getExperimentEvents(): Promise<ExperimentEvent[]> {
   return getLocal<ExperimentEvent[]>(STORAGE_KEYS.analytics, [])
 }
@@ -455,14 +451,6 @@ export async function deleteSnippetCollectionItem(
   return saveCollectionState({
     folders: current.folders,
     items: current.items.filter((item) => item.id !== itemId)
-  })
-}
-
-export async function pushKnowledgeRecord(record: KnowledgeRecord) {
-  const current = await getKnowledgeRecords()
-  const next = [record, ...current].slice(0, 300)
-  await chrome.storage.local.set({
-    [STORAGE_KEYS.knowledge]: next
   })
 }
 

@@ -1,7 +1,6 @@
 import {
   getAllCaptureDrafts,
   getExperimentEvents,
-  getKnowledgeRecords,
   getSnippetCollections,
   redactProviderSecrets
 } from "~/src/sdk/storage"
@@ -302,20 +301,18 @@ export async function buildExportSnapshot(
   settings: SmartFavoritesSettings,
   folderIndex: FolderIndex
 ): Promise<ExportSnapshot> {
-  const [knowledge, knowledgeItems, analytics, drafts, collections] =
-    await Promise.all([
-      getKnowledgeRecords(),
-      knowledgeStorage.list({ includeArchived: true }),
-      getExperimentEvents(),
-      getAllCaptureDrafts(),
-      getSnippetCollections()
-    ])
+  const [knowledgeItems, analytics, drafts, collections] = await Promise.all([
+    knowledgeStorage.list({ includeArchived: true }),
+    getExperimentEvents(),
+    getAllCaptureDrafts(),
+    getSnippetCollections()
+  ])
 
   return {
     schemaVersion: 2,
     exportedAt: new Date().toISOString(),
     settings: redactProviderSecrets(settings),
-    knowledge,
+    knowledge: [],
     knowledgeItems,
     analytics,
     folders: folderIndex.folders,

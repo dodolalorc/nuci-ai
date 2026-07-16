@@ -1,8 +1,5 @@
-import type {
-  ExperimentCondition,
-  ExperimentEvent,
-  KnowledgeRecord
-} from "~/src/sdk/types"
+import type { ExperimentCondition, ExperimentEvent } from "~/src/sdk/types"
+import type { KnowledgeItem } from "~/src/types/knowledge"
 
 interface ConditionMetricSummary {
   condition: ExperimentCondition
@@ -72,7 +69,7 @@ function buildDistribution(entries: string[], limit = 8) {
 
 export function buildAnalyticsSummary(
   events: ExperimentEvent[],
-  knowledgeRecords: KnowledgeRecord[]
+  knowledgeItems: KnowledgeItem[]
 ): AnalyticsSummary {
   const conditions: ExperimentCondition[] = ["manual", "rule", "enhanced"]
   const conditionRows = conditions.map((condition) => {
@@ -104,20 +101,24 @@ export function buildAnalyticsSummary(
 
   return {
     totalEvents: events.length,
-    totalKnowledgeRecords: knowledgeRecords.length,
+    totalKnowledgeRecords: knowledgeItems.length,
     uniquePages: new Set(
-      knowledgeRecords.map((record) => record.url).filter(Boolean)
+      knowledgeItems.map((record) => record.url).filter(Boolean)
     ).size,
     conditionRows,
-    tagDistribution: buildDistribution(knowledgeRecords.flatMap((record) => record.tags)),
+    tagDistribution: buildDistribution(
+      knowledgeItems.flatMap((record) => record.tags)
+    ),
     folderDistribution: buildDistribution(
-      knowledgeRecords.map((record) => record.folderPath || "未分类")
+      knowledgeItems.map(
+        (record) => record.subCategory || record.category || "未分类"
+      )
     ),
     sourceDistribution: buildDistribution(
-      knowledgeRecords.map((record) => record.source || "unknown")
+      knowledgeItems.map((record) => record.sourceType || "unknown")
     ),
     domainDistribution: buildDistribution(
-      knowledgeRecords
+      knowledgeItems
         .map((record) => {
           try {
             return new URL(record.url).hostname
@@ -131,11 +132,9 @@ export function buildAnalyticsSummary(
       events.map((event) => event.pageType || "unknown")
     ),
     hourDistribution: buildDistribution(
-      knowledgeRecords.map((record) => {
+      knowledgeItems.map((record) => {
         const date = new Date(record.createdAt)
-        return Number.isNaN(date.getTime())
-          ? "unknown"
-          : `${date.getHours().toString().padStart(2, "0")}:00`
+        return `${date.getHours().toString().padStart(2, "0")}:00`
       }),
       24
     )
