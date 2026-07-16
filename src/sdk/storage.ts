@@ -161,6 +161,44 @@ function normalizeProviders(
   }
 }
 
+export function redactProviderSecrets(
+  settings: SmartFavoritesSettings
+): SmartFavoritesSettings {
+  return {
+    ...settings,
+    provider: { ...settings.provider, apiKey: "" },
+    providers: settings.providers.map((provider) => ({
+      ...provider,
+      apiKey: ""
+    }))
+  }
+}
+
+function preserveExistingProviderSecrets(
+  imported: SmartFavoritesSettings,
+  current: SmartFavoritesSettings
+): SmartFavoritesSettings {
+  const currentKeys = new Map(
+    current.providers.map((provider) => [provider.id, provider.apiKey])
+  )
+  const providers = imported.providers.map((provider) => ({
+    ...provider,
+    apiKey: currentKeys.get(provider.id) ?? ""
+  }))
+  const activeProvider =
+    providers.find((provider) => provider.id === imported.activeProviderId) ??
+    providers[0]
+
+  return {
+    ...imported,
+    provider: {
+      ...imported.provider,
+      apiKey: activeProvider?.apiKey ?? ""
+    },
+    providers
+  }
+}
+
 export async function getSettings(): Promise<SmartFavoritesSettings> {
   const settings = await getLocal(STORAGE_KEYS.settings, DEFAULT_SETTINGS)
   const providerState = normalizeProviders(settings)
@@ -194,9 +232,14 @@ export async function saveSettings(settings: SmartFavoritesSettings) {
 export async function importSnapshotData(
   snapshot: ExportSnapshot
 ): Promise<ImportSnapshotResult> {
+  const currentSettings = await getSettings()
+  const safeImportedSettings = preserveExistingProviderSecrets(
+    redactProviderSecrets(snapshot.settings),
+    currentSettings
+  )
   const normalizedSettings = {
-    ...snapshot.settings,
-    ...normalizeProviders(snapshot.settings)
+    ...safeImportedSettings,
+    ...normalizeProviders(safeImportedSettings)
   }
   const knowledge = Array.isArray(snapshot.knowledge)
     ? snapshot.knowledge.slice(0, 300)

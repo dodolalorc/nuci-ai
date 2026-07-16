@@ -302,7 +302,7 @@ const downloadJson = (snapshot: ExportSnapshot) => {
 const exportBackup = async () => {
   const snapshot = await sdk.exportSnapshot()
   downloadJson(snapshot)
-  status.value = "已导出本地备份。"
+  status.value = "已导出本地备份（API Key 已自动脱敏）。"
 }
 
 const triggerImportBackup = () => {

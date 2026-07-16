@@ -2,7 +2,8 @@ import {
   getAllCaptureDrafts,
   getExperimentEvents,
   getKnowledgeRecords,
-  getSnippetCollections
+  getSnippetCollections,
+  redactProviderSecrets
 } from "~/src/sdk/storage"
 import type {
   ApplyBookmarkPayload,
@@ -313,7 +314,7 @@ export async function buildExportSnapshot(
   return {
     schemaVersion: 2,
     exportedAt: new Date().toISOString(),
-    settings,
+    settings: redactProviderSecrets(settings),
     knowledge,
     knowledgeItems,
     analytics,
