@@ -1,0 +1,29 @@
+src/background.ts
+  s_fc93eeb85355c2::t_a69273ebdb7691 9,229,231,233,241,243,245,250,252,254,256,262
+src/content-ui/FloatingButton.vue
+  s_fc93eeb85355c2::t_1f73b5d7a0c9e1 156-159,483-486,511-514,538-541,567,594,608
+src/contents/page-capture.ts
+  s_fc93eeb85355c2::t_20dd08af07d82d 7-10,306-309
+src/sdk/knowledgeMessages.ts
+  s_fc93eeb85355c2::t_50575db4ffce66 1-87
+src/views/KnowledgeBase.vue
+  s_fc93eeb85355c2::t_df59de2a950a39 4-7,32-33,58,69,82,85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6257a80702f527ab8d7f056f544eacc842000b3e",
+  "prompts": {},
+  "sessions": {
+    "s_fc93eeb85355c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f697b-04be-78e0-ab90-91e8d93966ac",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
