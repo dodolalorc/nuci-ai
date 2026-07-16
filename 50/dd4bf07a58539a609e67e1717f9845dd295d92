@@ -1,0 +1,23 @@
+src/services/knowledgeStorage.test.ts
+  s_fc93eeb85355c2::t_28222043ea93d7 80-112
+src/services/knowledgeStorage.ts
+  s_fc93eeb85355c2::t_a513889f42d0b6 96-97,105-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "50dd4bf07a58539a609e67e1717f9845dd295d92",
+  "prompts": {},
+  "sessions": {
+    "s_fc93eeb85355c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f697b-04be-78e0-ab90-91e8d93966ac",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
