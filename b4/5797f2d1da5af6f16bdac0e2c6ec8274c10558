@@ -1,0 +1,23 @@
+src/content-ui/FloatingButton.vue
+  s_fc93eeb85355c2::t_de9fc8ad426d9d 271,273
+src/contents/page-capture.ts
+  s_fc93eeb85355c2::t_eb7f712678a4f3 824-830
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b45797f2d1da5af6f16bdac0e2c6ec8274c10558",
+  "prompts": {},
+  "sessions": {
+    "s_fc93eeb85355c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f697b-04be-78e0-ab90-91e8d93966ac",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
