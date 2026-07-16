@@ -1,0 +1,21 @@
+src/sdk/client.ts
+  s_ea6a09d6636d1d::t_6186025f2a1883 1-4,197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1e5dbd263a49c18cda2b0f1a5b9aeb10ac5ea689",
+  "prompts": {},
+  "sessions": {
+    "s_ea6a09d6636d1d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6984-b35d-70d1-a9d9-3b3cbf5cd916",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
