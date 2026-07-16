@@ -1,0 +1,21 @@
+.gitignore
+  s_fc93eeb85355c2::t_a996a36a98be4c 6,36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "62b32b97e7e2a2efa154d7729632ceefdefc6470",
+  "prompts": {},
+  "sessions": {
+    "s_fc93eeb85355c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f697b-04be-78e0-ab90-91e8d93966ac",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
