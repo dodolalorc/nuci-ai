@@ -1,3 +1,7 @@
+import {
+  KNOWLEDGE_MESSAGE,
+  sendKnowledgeMessage
+} from "~/src/sdk/knowledgeMessages"
 import type {
   ApplyBookmarkPayload,
   BookmarkItem,
@@ -32,7 +36,6 @@ import type {
   UpdateCollectionFolderPayload,
   UpdateCollectionItemPayload
 } from "~/src/sdk/types"
-import type { KnowledgeItem } from "~/src/types/knowledge"
 
 async function sendRuntimeMessage<T>(
   type: string,
@@ -191,7 +194,7 @@ export class SmartFavoritesSDK {
   }
 
   async listKnowledgeItems() {
-    return sendRuntimeMessage<KnowledgeItem[]>("knowledge/list", {
+    return sendKnowledgeMessage(KNOWLEDGE_MESSAGE.list, {
       orderBy: "createdAt",
       orderDir: "desc",
       includeArchived: true
