@@ -39,6 +39,8 @@ export const config: PlasmoCSConfig = {
 const SIDEBAR_MIN_WIDTH = 400
 const SIDEBAR_MAX_WIDTH = 720
 const DEFAULT_SIDEBAR_WIDTH = 420
+const originalHtmlMarginRight = document.documentElement.style.marginRight
+const originalBodyMarginRight = document.body.style.marginRight
 
 const estimateTokens = (text: string) => Math.max(1, Math.ceil(text.length / 4))
 
@@ -122,9 +124,24 @@ const clampSidebarWidth = (width: number) =>
   Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, Math.round(width)))
 
 const applyViewportInset = () => {
-  const width = state.sidebarOpen ? `${state.sidebarWidth}px` : "0px"
-  document.documentElement.style.marginRight = width
-  document.body.style.marginRight = width
+  if (!state.sidebarOpen) {
+    document.documentElement.style.marginRight = originalHtmlMarginRight
+    document.body.style.marginRight = originalBodyMarginRight
+    return
+  }
+
+  const width = `${state.sidebarWidth}px`
+  document.documentElement.style.marginRight = originalHtmlMarginRight
+    ? `calc(${originalHtmlMarginRight} + ${width})`
+    : width
+  document.body.style.marginRight = originalBodyMarginRight
+    ? `calc(${originalBodyMarginRight} + ${width})`
+    : width
+}
+
+const restoreViewportInset = () => {
+  document.documentElement.style.marginRight = originalHtmlMarginRight
+  document.body.style.marginRight = originalBodyMarginRight
 }
 
 const sendMessage = async <T>(type: string, payload?: unknown) => {
@@ -790,6 +807,8 @@ window.addEventListener("scroll", () => {
     updateSelectionAnchor()
   }
 })
+
+window.addEventListener("pagehide", restoreViewportInset, { once: true })
 
 window.addEventListener("kc-page-capture-open-sidebar", () => {
   openCaptureSidebarFromFloatingMenu()
