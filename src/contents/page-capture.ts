@@ -1,34 +1,36 @@
 ﻿import type { PlasmoCSConfig } from "plasmo"
 import { createApp, reactive } from "vue"
+
 import "../ui/design-tokens.css"
 
+import PageCaptureOverlay from "../content-ui/PageCaptureOverlay.vue"
 import { getProviderConfigNotice } from "../sdk/provider"
-import { registerFontAwesome } from "../ui/fontawesome"
 import type {
   AiModelProfile,
   CapturedSnippet,
   CapturePageResponse,
-  PageContext,
   PageCaptureDraft,
+  PageContext,
   PageDigestSegment
 } from "../sdk/types"
+import { extractPageContent } from "../services/pageExtractor"
+import { registerFontAwesome } from "../ui/fontawesome"
 import {
-  ROOT_ID,
   ensureCaptureStyles,
   ensureHighlightBox,
   ensureOverlayRoot,
   hideHighlight,
+  ROOT_ID,
   updateHighlightRect
 } from "./capture/dom"
 import {
   createSnippet,
   cssPathFor,
   getCurrentSelectionText,
-  getPageArticleText,
   getPageArticleSegments,
+  getPageArticleText,
   getPageContext
 } from "./capture/extract"
-import PageCaptureOverlay from "../content-ui/PageCaptureOverlay.vue"
 
 export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"]
@@ -174,15 +176,21 @@ const hydrateModels = async () => {
   }>("bookmarks-collector/get-settings")
 
   state.aiModels = settings.providers ?? []
-  state.aiModelId = settings.activeProviderId || settings.providers?.[0]?.id || ""
+  state.aiModelId =
+    settings.activeProviderId || settings.providers?.[0]?.id || ""
   const activeModel =
     settings.providers.find((provider) => provider.id === state.aiModelId) ??
     settings.providers[0]
 
   state.aiModelLabel =
-    activeModel?.label || activeModel?.model || settings.provider.model || "未配置模型"
+    activeModel?.label ||
+    activeModel?.model ||
+    settings.provider.model ||
+    "未配置模型"
   state.aiConfigured = Boolean(
-    activeModel?.apiKey?.trim() && activeModel?.baseUrl?.trim() && activeModel?.model?.trim()
+    activeModel?.apiKey?.trim() &&
+      activeModel?.baseUrl?.trim() &&
+      activeModel?.model?.trim()
   )
   state.aiConfigNotice = activeModel
     ? getProviderConfigNotice(activeModel)
@@ -261,9 +269,12 @@ const analyzeAllSnippets = async (force = false) => {
 }
 
 const openExtensionPage = async (path: string) => {
-  await sendMessage<{ success: boolean }>("bookmarks-collector/open-extension-page", {
-    path
-  })
+  await sendMessage<{ success: boolean }>(
+    "bookmarks-collector/open-extension-page",
+    {
+      path
+    }
+  )
 }
 
 const quickSaveToKnowledge = async () => {
@@ -271,9 +282,7 @@ const quickSaveToKnowledge = async () => {
   renderOverlay()
 
   try {
-    await sendMessage("knowledge/quick-save", {
-      sourceType: "page"
-    })
+    await sendMessage("knowledge/quick-save", extractPageContent())
     state.status = "已保存到知识库。"
   } catch (error) {
     state.status =
@@ -329,7 +338,9 @@ const renderOverlay = () => {
       const startWidth = state.sidebarWidth
 
       const onMouseMove = (moveEvent: MouseEvent) => {
-        const nextWidth = clampSidebarWidth(startWidth + (startX - moveEvent.clientX))
+        const nextWidth = clampSidebarWidth(
+          startWidth + (startX - moveEvent.clientX)
+        )
         state.sidebarWidth = nextWidth
         applyViewportInset()
         renderOverlay()
@@ -425,9 +436,12 @@ const renderOverlay = () => {
         const activeModel =
           state.aiModels.find((provider) => provider.id === payload.modelId) ??
           state.aiModels[0]
-        state.aiModelLabel = activeModel?.label || activeModel?.model || "未配置模型"
+        state.aiModelLabel =
+          activeModel?.label || activeModel?.model || "未配置模型"
         state.aiConfigured = Boolean(
-          activeModel?.apiKey?.trim() && activeModel?.baseUrl?.trim() && activeModel?.model?.trim()
+          activeModel?.apiKey?.trim() &&
+            activeModel?.baseUrl?.trim() &&
+            activeModel?.model?.trim()
         )
         state.aiConfigNotice = activeModel
           ? getProviderConfigNotice(activeModel)
@@ -443,9 +457,9 @@ const renderOverlay = () => {
         state.articleSegments = state.articleSegments.map((segment) =>
           segment.id === payload.segmentId
             ? {
-              ...segment,
-              selected: payload.segmentSelected
-            }
+                ...segment,
+                selected: payload.segmentSelected
+              }
             : segment
         )
       }
@@ -471,7 +485,8 @@ const renderOverlay = () => {
       state.bookmarkPromptVisible = false
       state.sidebarOpen = true
       applyViewportInset()
-      state.status = "已打开当前页面抓取面板。你可以先补充知识片段，再进入历史整理。"
+      state.status =
+        "已打开当前页面抓取面板。你可以先补充知识片段，再进入历史整理。"
       renderOverlay()
     },
     onDismissBookmarkPrompt: () => {
@@ -503,7 +518,9 @@ const captureSelection = async () => {
     return
   }
 
-  await storeSnippet(createSnippet("selection", text.slice(0, 2000), "selection"))
+  await storeSnippet(
+    createSnippet("selection", text.slice(0, 2000), "selection")
+  )
   state.status = "已把选中文本加入当前页面知识列表。"
   state.sidebarOpen = true
   state.selectionAnchorVisible = false
@@ -514,7 +531,9 @@ const captureSelection = async () => {
 
 const summarizeArticle = async () => {
   if (!state.aiConfigured) {
-    state.aiStatus = state.aiConfigNotice || "尚未配置模型，请前往插件管理页 > 模型配置进行配置。"
+    state.aiStatus =
+      state.aiConfigNotice ||
+      "尚未配置模型，请前往插件管理页 > 模型配置进行配置。"
     renderOverlay()
     return
   }
@@ -540,7 +559,9 @@ const summarizeArticle = async () => {
 
   try {
     const page = getPageContext()
-    const activeSegments = state.articleSegments.filter((segment) => segment.selected)
+    const activeSegments = state.articleSegments.filter(
+      (segment) => segment.selected
+    )
     const result = await sendMessage<{
       modelLabel: string
       providerId: string
@@ -576,7 +597,9 @@ const summarizeArticle = async () => {
 
 const smartSelectSegments = async () => {
   if (!state.aiConfigured) {
-    state.aiStatus = state.aiConfigNotice || "尚未配置模型，请前往插件管理页 > 模型配置进行配置。"
+    state.aiStatus =
+      state.aiConfigNotice ||
+      "尚未配置模型，请前往插件管理页 > 模型配置进行配置。"
     renderOverlay()
     return
   }

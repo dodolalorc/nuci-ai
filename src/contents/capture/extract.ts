@@ -1,7 +1,12 @@
-import type { CapturedSnippet, PageContext, PageDigestSegment } from "../../sdk/types"
+import type {
+  CapturedSnippet,
+  PageContext,
+  PageDigestSegment
+} from "../../sdk/types"
+import { extractPageContent } from "../../services/pageExtractor"
 
 const readMeta = (selector: string, attr = "content") =>
-    document.querySelector(selector)?.getAttribute(attr)?.trim() ?? ""
+  document.querySelector(selector)?.getAttribute(attr)?.trim() ?? ""
 
 const NOISE_SELECTORS = [
   "script",
@@ -40,10 +45,10 @@ export const getCurrentSelectionText = () =>
   window.getSelection?.()?.toString().trim() ?? ""
 
 export const createSnippet = (
-    mode: "selection" | "element",
-    text: string,
-    label: string,
-    selector?: string
+  mode: "selection" | "element",
+  text: string,
+  label: string,
+  selector?: string
 ): CapturedSnippet => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   mode,
@@ -84,8 +89,8 @@ const sanitizeRoot = (root: Element) => {
 const readTextBlocks = (root: ParentNode, selector: string) =>
   uniqueTextBlocks(
     Array.from(root.querySelectorAll(selector))
-    .map((element) => element.textContent?.replace(/\s+/g, " ").trim() ?? "")
-    .filter((text) => text.length > 0)
+      .map((element) => element.textContent?.replace(/\s+/g, " ").trim() ?? "")
+      .filter((text) => text.length > 0)
   )
 
 const textDensity = (element: Element) => {
@@ -129,59 +134,7 @@ const pickArticleRoot = () => {
 }
 
 export const getPageArticleText = () => {
-  const articleRoot = sanitizeRoot(pickArticleRoot())
-  const title = document.title?.trim() || location.hostname
-  const blocks: string[] = []
-
-  const headings = Array.from(articleRoot.querySelectorAll("h1, h2, h3"))
-    .map((element) => ({
-      level: Number(element.tagName.slice(1)),
-      text: element.textContent?.replace(/\s+/g, " ").trim() ?? ""
-    }))
-    .filter((item) => item.text.length > 0)
-
-  if (headings.length > 0) {
-    blocks.push(
-      ...uniqueTextBlocks(
-        headings.map(
-          (heading) => `${"#".repeat(Math.min(Math.max(heading.level, 1), 3))} ${heading.text}`
-        )
-      )
-    )
-  }
-
-  const paragraphs = uniqueTextBlocks(
-    readTextBlocks(
-      articleRoot,
-      "p, li, blockquote, pre code, figcaption, td"
-    )
-  ).filter((text) => {
-    if (text.length < 24) {
-      return false
-    }
-
-    const lowered = text.toLowerCase()
-    return ![
-      "copyright",
-      "all rights reserved",
-      "上一篇",
-      "下一篇",
-      "相关阅读",
-      "相关推荐",
-      "登录",
-      "注册"
-    ].some((noise) => lowered.includes(noise))
-  })
-
-  if (paragraphs.length > 0) {
-    blocks.push(...paragraphs.slice(0, 220))
-  }
-
-  const content = normalizeText(
-    [title, ...blocks].filter(Boolean).join("\n\n")
-  ).slice(0, 32000)
-
-  return content
+  return extractPageContent().content.slice(0, 32000)
 }
 
 export const getPageArticleSegments = (): PageDigestSegment[] => {
@@ -202,19 +155,14 @@ export const getPageArticleSegments = (): PageDigestSegment[] => {
 }
 
 const buildSummaryBlocks = (root: Element) =>
-  uniqueTextBlocks(
-    readTextBlocks(
-      root,
-      "p, article p, main p, li, blockquote"
-    )
-  )
+  uniqueTextBlocks(readTextBlocks(root, "p, article p, main p, li, blockquote"))
     .filter((text) => text.length > 40)
     .slice(0, 8)
 
 export const getPageContext = (): PageContext => {
-    const title = document.title?.trim() || location.hostname
-    const description = readMeta('meta[name="description"]')
-    const author =
+  const title = document.title?.trim() || location.hostname
+  const description = readMeta('meta[name="description"]')
+  const author =
     readMeta('meta[name="author"]') ||
     readMeta('meta[property="article:author"]') ||
     (document.querySelector('[itemprop="author"]')?.textContent?.trim() ?? "")
@@ -250,26 +198,28 @@ export const getPageContext = (): PageContext => {
 }
 
 export const cssPathFor = (element: Element) => {
-    const segments: string[] = []
-    let current: Element | null = element
+  const segments: string[] = []
+  let current: Element | null = element
 
-    while (current && segments.length < 5) {
-        const tag = current.tagName.toLowerCase()
-        if (current.id) {
-            segments.unshift(`${tag}#${current.id}`)
-            break
-        }
-
-        const siblings = current.parentElement
-            ? Array.from(current.parentElement.children).filter(
-                (item) => item.tagName === current.tagName
-            )
-            : []
-        const index =
-            siblings.length > 1 ? `:nth-of-type(${siblings.indexOf(current) + 1})` : ""
-        segments.unshift(`${tag}${index}`)
-        current = current.parentElement
+  while (current && segments.length < 5) {
+    const tag = current.tagName.toLowerCase()
+    if (current.id) {
+      segments.unshift(`${tag}#${current.id}`)
+      break
     }
 
-    return segments.join(" > ")
+    const siblings = current.parentElement
+      ? Array.from(current.parentElement.children).filter(
+          (item) => item.tagName === current.tagName
+        )
+      : []
+    const index =
+      siblings.length > 1
+        ? `:nth-of-type(${siblings.indexOf(current) + 1})`
+        : ""
+    segments.unshift(`${tag}${index}`)
+    current = current.parentElement
+  }
+
+  return segments.join(" > ")
 }

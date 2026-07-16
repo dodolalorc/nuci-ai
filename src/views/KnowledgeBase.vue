@@ -199,8 +199,11 @@ function formatDate(ts: number) {
               class="kb__tag"
               >{{ tag }}</span
             >
+            <span v-if="item.aiStatus === 'pending'" class="kb__tag"
+              >待 AI 整理</span
+            >
             <span
-              v-if="item.aiStatus === 'failed'"
+              v-else-if="item.aiStatus === 'failed'"
               class="kb__tag kb__tag--error"
               >AI失败</span
             >

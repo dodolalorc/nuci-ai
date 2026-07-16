@@ -14,32 +14,29 @@ import {
   summarizePageContent
 } from "~/src/sdk/provider"
 import {
-  addSnippetCollectionItem,
   addCapturedSnippet,
+  addSnippetCollectionItem,
   clearCaptureDraft,
   createSnippetFolder,
   deleteSnippetCollectionItem,
   deleteSnippetFolder,
   getCaptureDraft,
-  getKnowledgeRecords,
   getExperimentEvents,
+  getKnowledgeRecords,
   getRecommendationFeedback,
-  getSnippetCollections,
   getSettings,
+  getSnippetCollections,
   importSnapshotData,
   moveSnippetCollectionItem,
+  pushKnowledgeRecord,
   pushRecommendationFeedback,
   recordExperimentEvent,
-  pushKnowledgeRecord,
   removeCapturedSnippet,
   saveSettings,
+  updateCapturedSnippet,
   updateSnippetCollectionItem,
-  updateSnippetFolder,
-  updateCapturedSnippet
+  updateSnippetFolder
 } from "~/src/sdk/storage"
-import { knowledgeStorage } from "~/src/services/knowledgeStorage"
-import { aiService } from "~/src/services/aiService"
-import type { KnowledgeQuery, QuickSavePayload } from "~/src/types/knowledge"
 import type {
   ApplyBookmarkPayload,
   BookmarkMoveDecision,
@@ -48,19 +45,19 @@ import type {
   CapturedSnippet,
   CollectionFolderMutationResult,
   CollectionItemMutationResult,
-  CreateCollectionItemPayload,
   CreateCollectionFolderPayload,
+  CreateCollectionItemPayload,
   DeleteCollectionFolderPayload,
   DeleteCollectionItemPayload,
   ExperimentEvent,
-  ExtensionPageOpenPayload,
   ExportSnapshot,
+  ExtensionPageOpenPayload,
   HistoryRecommendationItem,
   HistoryRecommendationRequest,
   ImportSnapshotResult,
   MoveCollectionItemPayload,
-  PageDigestRequest,
   PageCaptureDraft,
+  PageDigestRequest,
   RecommendationInput,
   RecommendationResult,
   RecordExperimentEventPayload,
@@ -70,6 +67,13 @@ import type {
   UpdateCollectionFolderPayload,
   UpdateCollectionItemPayload
 } from "~/src/sdk/types"
+import { aiService } from "~/src/services/aiService"
+import { knowledgeStorage } from "~/src/services/knowledgeStorage"
+import type {
+  KnowledgeQuery,
+  KnowledgeUpdatePatch,
+  QuickSavePayload
+} from "~/src/types/knowledge"
 
 chrome.bookmarks.onCreated.addListener((_, node) => {
   if (!node.url?.startsWith("http")) {
@@ -99,7 +103,9 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
       await saveSettings(message.payload as SmartFavoritesSettings)
       return { success: true }
     case "bookmarks-collector/update-active-provider":
-      return handleUpdateActiveProvider(message.payload as UpdateActiveProviderPayload)
+      return handleUpdateActiveProvider(
+        message.payload as UpdateActiveProviderPayload
+      )
     case "bookmarks-collector/recommend":
       return handleRecommendation(message.payload as RecommendationInput)
     case "bookmarks-collector/summarize-page-content":
@@ -158,9 +164,13 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
         message.payload as HistoryRecommendationRequest | undefined
       )
     case "bookmarks-collector/apply-bulk-bookmarks":
-      return handleApplyBulkBookmarks(message.payload as BulkBookmarkApplyPayload)
+      return handleApplyBulkBookmarks(
+        message.payload as BulkBookmarkApplyPayload
+      )
     case "bookmarks-collector/open-extension-page":
-      return handleOpenExtensionPage(message.payload as ExtensionPageOpenPayload)
+      return handleOpenExtensionPage(
+        message.payload as ExtensionPageOpenPayload
+      )
     case "bookmarks-collector/get-snippet-collections":
       return getSnippetCollections()
     case "bookmarks-collector/get-knowledge-records":
@@ -172,25 +182,41 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
         message.payload as RecordExperimentEventPayload
       )
     case "bookmarks-collector/create-snippet-folder":
-      return handleCreateSnippetFolder(message.payload as CreateCollectionFolderPayload)
+      return handleCreateSnippetFolder(
+        message.payload as CreateCollectionFolderPayload
+      )
     case "bookmarks-collector/update-snippet-folder":
-      return handleUpdateSnippetFolder(message.payload as UpdateCollectionFolderPayload)
+      return handleUpdateSnippetFolder(
+        message.payload as UpdateCollectionFolderPayload
+      )
     case "bookmarks-collector/delete-snippet-folder":
-      return handleDeleteSnippetFolder(message.payload as DeleteCollectionFolderPayload)
+      return handleDeleteSnippetFolder(
+        message.payload as DeleteCollectionFolderPayload
+      )
     case "bookmarks-collector/update-snippet-item":
-      return handleUpdateSnippetItem(message.payload as UpdateCollectionItemPayload)
+      return handleUpdateSnippetItem(
+        message.payload as UpdateCollectionItemPayload
+      )
     case "bookmarks-collector/create-snippet-item":
-      return handleCreateSnippetItem(message.payload as CreateCollectionItemPayload)
+      return handleCreateSnippetItem(
+        message.payload as CreateCollectionItemPayload
+      )
     case "bookmarks-collector/move-snippet-item":
       return handleMoveSnippetItem(message.payload as MoveCollectionItemPayload)
     case "bookmarks-collector/delete-snippet-item":
-      return handleDeleteSnippetItem(message.payload as DeleteCollectionItemPayload)
+      return handleDeleteSnippetItem(
+        message.payload as DeleteCollectionItemPayload
+      )
 
     // ── Knowledge Base (new) ──────────────────────────────
     case "knowledge/quick-save":
-      return handleKnowledgeQuickSave(message.payload as Partial<QuickSavePayload>)
+      return handleKnowledgeQuickSave(
+        message.payload as Partial<QuickSavePayload>
+      )
     case "knowledge/generate-quick-meta":
-      return handleKnowledgeGenerateQuickMeta(message.payload as Partial<QuickSavePayload>)
+      return handleKnowledgeGenerateQuickMeta(
+        message.payload as Partial<QuickSavePayload>
+      )
     case "knowledge/save-with-meta":
       return handleKnowledgeSaveWithMeta(
         message.payload as Partial<QuickSavePayload> & {
@@ -208,7 +234,7 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
     case "knowledge/update":
       return knowledgeStorage.update(
         (message.payload as { id: string }).id,
-        message.payload as Record<string, unknown>
+        pickKnowledgeUpdate(message.payload)
       )
     case "knowledge/delete":
       return knowledgeStorage.delete((message.payload as { id: string }).id)
@@ -247,8 +273,9 @@ async function handleRecommendation(
     feedbackEntries
   )
   const activeProvider =
-    settings.providers.find((provider) => provider.id === settings.activeProviderId) ??
-    settings.providers[0]
+    settings.providers.find(
+      (provider) => provider.id === settings.activeProviderId
+    ) ?? settings.providers[0]
 
   if (!activeProvider || !hasProviderConfig(activeProvider)) {
     return baseRecommendation
@@ -275,7 +302,9 @@ async function handleRecommendation(
   return baseRecommendation
 }
 
-async function handleUpdateActiveProvider(payload: UpdateActiveProviderPayload) {
+async function handleUpdateActiveProvider(
+  payload: UpdateActiveProviderPayload
+) {
   const settings = await getSettings()
   const activeProvider =
     settings.providers.find((provider) => provider.id === payload.providerId) ??
@@ -308,7 +337,11 @@ async function handleSelectRelevantSegments(
   payload: PageDigestRequest
 ): Promise<SegmentSelectionResult> {
   const settings = await getSettings()
-  return selectRelevantSegments(payload.segments ?? [], settings, payload.providerId)
+  return selectRelevantSegments(
+    payload.segments ?? [],
+    settings,
+    payload.providerId
+  )
 }
 
 async function handleApplyBookmark(payload: ApplyBookmarkPayload) {
@@ -365,12 +398,14 @@ async function handleRemoveCapturedSnippet(payload: {
 async function handleListHistoryBookmarks(
   request?: HistoryRecommendationRequest
 ): Promise<HistoryRecommendationItem[]> {
-  const [bookmarks, folderIndex, settings, feedbackEntries] = await Promise.all([
-    listBookmarks(request?.limit ?? 40),
-    buildFolderIndex(),
-    getSettings(),
-    getRecommendationFeedback()
-  ])
+  const [bookmarks, folderIndex, settings, feedbackEntries] = await Promise.all(
+    [
+      listBookmarks(request?.limit ?? 40),
+      buildFolderIndex(),
+      getSettings(),
+      getRecommendationFeedback()
+    ]
+  )
 
   const selectedBookmarks = request?.bookmarkIds?.length
     ? bookmarks.filter((item) => request.bookmarkIds?.includes(item.id))
@@ -425,7 +460,10 @@ async function handleOpenExtensionPage(payload: ExtensionPageOpenPayload) {
   // Backward compatibility: old callers may still pass options.html#...
   // This project now uses tabs/manage.html as the only management page.
   if (normalizedPath.startsWith("options.html")) {
-    const mappedPath = normalizedPath.replace("options.html", "tabs/manage.html")
+    const mappedPath = normalizedPath.replace(
+      "options.html",
+      "tabs/manage.html"
+    )
     await chrome.tabs.create({ url: chrome.runtime.getURL(mappedPath) })
     return { success: true }
   }
@@ -438,8 +476,13 @@ async function handleOpenExtensionPage(payload: ExtensionPageOpenPayload) {
 async function handleCreateSnippetFolder(
   payload: CreateCollectionFolderPayload
 ): Promise<CollectionFolderMutationResult> {
-  const collections = await createSnippetFolder(payload.name, payload.description)
-  const folder = collections.folders.find((item) => item.name === payload.name.trim())
+  const collections = await createSnippetFolder(
+    payload.name,
+    payload.description
+  )
+  const folder = collections.folders.find(
+    (item) => item.name === payload.name.trim()
+  )
 
   return {
     collections,
@@ -514,7 +557,10 @@ async function handleCreateSnippetItem(
 async function handleMoveSnippetItem(
   payload: MoveCollectionItemPayload
 ): Promise<CollectionItemMutationResult> {
-  const collections = await moveSnippetCollectionItem(payload.itemId, payload.folderId)
+  const collections = await moveSnippetCollectionItem(
+    payload.itemId,
+    payload.folderId
+  )
 
   return {
     collections,
@@ -538,7 +584,9 @@ async function handleAnalyzeCapturedSnippet(payload: {
   snippetId: string
 }): Promise<PageCaptureDraft> {
   const draft = await getCaptureDraft(payload.url)
-  const target = draft.snippets.find((snippet) => snippet.id === payload.snippetId)
+  const target = draft.snippets.find(
+    (snippet) => snippet.id === payload.snippetId
+  )
 
   if (!target) {
     return draft
@@ -582,17 +630,25 @@ async function handleAnalyzeAllCapturedSnippets(payload: {
   let nextDraft = draft
 
   for (const snippet of draft.snippets) {
-    if (!payload.force && snippet.analysisSummary && snippet.analysisTags?.length) {
+    if (
+      !payload.force &&
+      snippet.analysisSummary &&
+      snippet.analysisTags?.length
+    ) {
       continue
     }
 
     const analysis = await analyzeSnippetContent(snippet.text, settings)
-    nextDraft = await updateCapturedSnippet(payload.url, snippet.id, (current) => ({
-      ...current,
-      analysisSummary: analysis.summary,
-      analysisTags: analysis.tags,
-      analysisUpdatedAt: new Date().toISOString()
-    }))
+    nextDraft = await updateCapturedSnippet(
+      payload.url,
+      snippet.id,
+      (current) => ({
+        ...current,
+        analysisSummary: analysis.summary,
+        analysisTags: analysis.tags,
+        analysisUpdatedAt: new Date().toISOString()
+      })
+    )
   }
 
   return nextDraft
@@ -607,98 +663,80 @@ async function notifyBookmarkCreated(url: string) {
     matchedTabs
       .filter((tab) => typeof tab.id === "number")
       .map((tab) =>
-        chrome.tabs.sendMessage(tab.id as number, {
-          type: "bookmarks-collector/bookmark-created"
-        }).catch(() => undefined)
+        chrome.tabs
+          .sendMessage(tab.id as number, {
+            type: "bookmarks-collector/bookmark-created"
+          })
+          .catch(() => undefined)
       )
   )
 }
 
 // ── Knowledge Base Handlers ──────────────────────────────────────────────
 
-async function getPageContentFromActiveTab(): Promise<{
-  title: string
-  url: string
-  content: string
-  excerpt?: string
-  siteName?: string
-}> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  if (!tab?.id || !tab.url) {
-    throw new Error("当前没有可读取的网页标签页。")
+function normalizePagePayload(
+  payload: Partial<QuickSavePayload>
+): QuickSavePayload {
+  const title = payload.title?.trim()
+  const url = payload.url?.trim()
+  const content = payload.content?.trim()
+
+  if (!title || !url || !content) {
+    throw new Error("页面内容不完整，请刷新页面后重试。")
   }
 
-  if (
-    tab.url.startsWith("chrome://") ||
-    tab.url.startsWith("edge://") ||
-    tab.url.startsWith("about:")
-  ) {
-    return {
-      title: tab.title ?? "系统页面",
-      url: tab.url,
-      content: ""
-    }
+  try {
+    const parsed = new URL(url)
+    if (!/^https?:$/.test(parsed.protocol)) throw new Error()
+  } catch {
+    throw new Error("当前页面链接不可保存。")
   }
 
-  // Inject content extractor script into the tab
-  const results = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: () => {
-      const NOISE_SELECTORS = [
-        "script", "style", "noscript", "nav", "aside", "footer",
-        "header nav", "[role='navigation']", ".advertisement", ".ads",
-        ".sidebar", ".comments", ".breadcrumb", ".pagination"
-      ].join(", ")
-
-      function readMeta(selector: string) {
-        return document.querySelector(selector)?.getAttribute("content")?.trim() ?? ""
-      }
-
-      function sanitize(root: Element): Element {
-        const clone = root.cloneNode(true) as Element
-        clone.querySelectorAll(NOISE_SELECTORS).forEach((n) => n.remove())
-        return clone
-      }
-
-      function normalize(text: string) {
-        return text.replace(/\u00a0/g, " ").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim()
-      }
-
-      const SELECTORS = ["article", "main", ".content", ".post-content", ".article-content", ".markdown-body", ".entry-content"]
-      let text = ""
-      for (const sel of SELECTORS) {
-        const el = document.querySelector(sel)
-        if (el) {
-          const t = normalize(sanitize(el).textContent ?? "")
-          if (t.length > 200) { text = t; break }
-        }
-      }
-      if (!text) {
-        text = normalize(sanitize(document.body).textContent ?? "")
-      }
-
-      return {
-        title: document.title || readMeta('meta[property="og:title"]') || "",
-        url: location.href,
-        content: text,
-        excerpt: readMeta('meta[name="description"]') || readMeta('meta[property="og:description"]') || "",
-        siteName: readMeta('meta[property="og:site_name"]') || location.hostname || ""
-      }
-    }
-  })
-
-  const result = results[0]?.result
-  if (!result) throw new Error("无法提取页面内容，请刷新后重试。")
-  return result
+  return {
+    title: title.slice(0, 500),
+    url,
+    content: content.slice(0, 32_000),
+    excerpt: payload.excerpt?.trim().slice(0, 1_000),
+    siteName: payload.siteName?.trim().slice(0, 200),
+    sourceType: payload.sourceType ?? "page"
+  }
 }
 
-async function handleKnowledgeQuickSave(
-  payload: Partial<QuickSavePayload>
-) {
-  const pageData = await getPageContentFromActiveTab()
+function pickKnowledgeUpdate(payload: unknown): Partial<KnowledgeUpdatePatch> {
+  const input = payload as Record<string, unknown>
+  const allowed = [
+    "title",
+    "content",
+    "excerpt",
+    "siteName",
+    "summary",
+    "tags",
+    "category",
+    "subCategory",
+    "keyPoints",
+    "outline",
+    "learningNotes",
+    "highlights",
+    "aiStatus",
+    "favorite",
+    "archived"
+  ] as const
+
+  return Object.fromEntries(
+    allowed.filter((key) => key in input).map((key) => [key, input[key]])
+  ) as Partial<KnowledgeUpdatePatch>
+}
+
+async function handleKnowledgeQuickSave(payload: Partial<QuickSavePayload>) {
+  const pageData = normalizePagePayload(payload)
   const settings = await getSettings()
 
-  let meta: { summary: string; tags: string[]; category: string; subCategory?: string } = {
+  let meta: {
+    summary: string
+    tags: string[]
+    category: string
+    subCategory?: string
+  } = {
     summary: "",
     tags: [],
     category: "其他",
@@ -716,7 +754,7 @@ async function handleKnowledgeQuickSave(
     // AI failure - save without metadata, status = failed
   }
 
-  const item = await knowledgeStorage.create({
+  const item = await knowledgeStorage.upsertByUrl({
     title: pageData.title,
     url: pageData.url,
     content: pageData.content,
@@ -727,16 +765,16 @@ async function handleKnowledgeQuickSave(
     tags: meta.tags,
     category: meta.category,
     subCategory: meta.subCategory,
-    aiStatus: meta.summary ? "success" : "failed"
+    aiStatus: meta.summary ? "success" : "pending"
   })
 
   return item
 }
 
 async function handleKnowledgeGenerateQuickMeta(
-  _payload: Partial<QuickSavePayload>
+  payload: Partial<QuickSavePayload>
 ) {
-  const pageData = await getPageContentFromActiveTab()
+  const pageData = normalizePagePayload(payload)
   const settings = await getSettings()
   return aiService.generateQuickMeta(pageData.title, pageData.content, settings)
 }
@@ -748,9 +786,9 @@ async function handleKnowledgeSaveWithMeta(
     category?: string
   }
 ) {
-  const pageData = await getPageContentFromActiveTab()
+  const pageData = normalizePagePayload(payload)
 
-  const item = await knowledgeStorage.create({
+  const item = await knowledgeStorage.upsertByUrl({
     title: payload.title ?? pageData.title,
     url: pageData.url,
     content: pageData.content,
@@ -766,11 +804,22 @@ async function handleKnowledgeSaveWithMeta(
   return item
 }
 
-async function handleKnowledgeSaveSelection(payload: { selectedText: string }) {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+async function handleKnowledgeSaveSelection(
+  payload: { selectedText: string } & Partial<QuickSavePayload>
+) {
+  const pageData = normalizePagePayload({
+    ...payload,
+    content: payload.selectedText,
+    sourceType: "selection"
+  })
   const settings = await getSettings()
 
-  let meta: { summary: string; tags: string[]; category: string; subCategory?: string } = {
+  let meta: {
+    summary: string
+    tags: string[]
+    category: string
+    subCategory?: string
+  } = {
     summary: "",
     tags: [],
     category: "其他",
@@ -779,8 +828,8 @@ async function handleKnowledgeSaveSelection(payload: { selectedText: string }) {
 
   try {
     const aiMeta = await aiService.generateQuickMeta(
-      tab?.title ?? "",
-      payload.selectedText,
+      pageData.title,
+      pageData.content,
       settings
     )
     meta = aiMeta
@@ -788,15 +837,17 @@ async function handleKnowledgeSaveSelection(payload: { selectedText: string }) {
     // AI failure
   }
 
-  return knowledgeStorage.create({
-    title: tab?.title ?? "选中文本",
-    url: tab?.url ?? "",
-    content: payload.selectedText,
+  return knowledgeStorage.upsertByUrl({
+    title: pageData.title,
+    url: pageData.url,
+    content: pageData.content,
+    excerpt: pageData.excerpt,
+    siteName: pageData.siteName,
     sourceType: "selection",
     summary: meta.summary || undefined,
     tags: meta.tags,
     category: meta.category,
-    aiStatus: meta.summary ? "success" : "failed"
+    aiStatus: meta.summary ? "success" : "pending"
   })
 }
 
@@ -805,7 +856,11 @@ async function handleKnowledgeRetryAi(id: string) {
   if (!item) throw new Error("知识条目不存在")
 
   const settings = await getSettings()
-  const meta = await aiService.generateQuickMeta(item.title, item.content, settings)
+  const meta = await aiService.generateQuickMeta(
+    item.title,
+    item.content,
+    settings
+  )
 
   return knowledgeStorage.update(id, {
     summary: meta.summary,

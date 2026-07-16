@@ -152,9 +152,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue"
 
-import type { SmartFavoritesSettings } from "../sdk/types"
-import { KNOWLEDGE_CATEGORIES } from "../types/knowledge"
 import floatingBallIconUrl from "../contents/icon.png"
+import type { SmartFavoritesSettings } from "../sdk/types"
+import { extractPageContent } from "../services/pageExtractor"
+import { KNOWLEDGE_CATEGORIES } from "../types/knowledge"
 
 type FloatingSide = "left" | "right"
 type FloatingAnchor = {
@@ -275,7 +276,9 @@ async function sendMessage<T>(type: string, payload?: unknown): Promise<T> {
 
 async function loadAnchor() {
   const stored = await chrome.storage.local.get(FLOATING_ANCHOR_KEY)
-  const next = stored[FLOATING_ANCHOR_KEY] as Partial<FloatingAnchor> | undefined
+  const next = stored[FLOATING_ANCHOR_KEY] as
+    | Partial<FloatingAnchor>
+    | undefined
 
   if (next?.side !== "left" && next?.side !== "right") {
     anchor.value = createDefaultAnchor()
@@ -472,19 +475,15 @@ async function quickSave() {
 
   try {
     showToast("正在抓取网页...")
-    await sendMessage("knowledge/quick-save", {
-      sourceType: "page"
-    })
+    showToast("正在整理内容...")
+    await sendMessage("knowledge/quick-save", extractPageContent())
     saveSuccess.value = true
     showToast("已保存到知识库")
     window.setTimeout(() => {
       saveSuccess.value = false
     }, 3000)
   } catch (error) {
-    showToast(
-      error instanceof Error ? error.message : "保存失败，请重试",
-      true
-    )
+    showToast(error instanceof Error ? error.message : "保存失败，请重试", true)
   } finally {
     isSaving.value = false
   }
@@ -506,7 +505,7 @@ async function deepSave() {
       summary: string
       tags: string[]
       category: string
-    }>("knowledge/generate-quick-meta")
+    }>("knowledge/generate-quick-meta", extractPageContent())
     editSummary.value = result.summary
     editTagsStr.value = result.tags.join(", ")
     editCategory.value = result.category
@@ -534,7 +533,7 @@ async function regenAi() {
       summary: string
       tags: string[]
       category: string
-    }>("knowledge/generate-quick-meta")
+    }>("knowledge/generate-quick-meta", extractPageContent())
     editSummary.value = result.summary
     editTagsStr.value = result.tags.join(", ")
     editCategory.value = result.category
@@ -561,6 +560,7 @@ async function confirmDeepSave() {
       .filter(Boolean)
 
     await sendMessage("knowledge/save-with-meta", {
+      ...extractPageContent(),
       title: editTitle.value,
       summary: editSummary.value,
       tags,
@@ -587,6 +587,7 @@ async function saveSelection() {
   isSaving.value = true
   try {
     await sendMessage("knowledge/save-selection", {
+      ...extractPageContent(),
       selectedText: selectionText.value
     })
     showToast("选中文本已保存")
