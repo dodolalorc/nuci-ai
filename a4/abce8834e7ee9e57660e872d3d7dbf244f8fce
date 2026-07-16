@@ -1,0 +1,21 @@
+src/views/PopupApp.vue
+  s_ccbba2d527f766::t_7a621f836f26a0 1-334
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a4abce8834e7ee9e57660e872d3d7dbf244f8fce",
+  "prompts": {},
+  "sessions": {
+    "s_ccbba2d527f766": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6a2b-a339-7561-8d57-b018c260dc37",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
