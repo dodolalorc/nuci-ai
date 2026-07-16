@@ -66,6 +66,15 @@ import type {
   UpdateCollectionItemPayload
 } from "~/src/sdk/types"
 import {
+  createCollectionFolder,
+  createCollectionItem,
+  deleteCollectionFolder,
+  deleteCollectionItem,
+  moveCollectionItem,
+  updateCollectionFolder,
+  updateCollectionItem
+} from "~/src/services/collectionService"
+import {
   generateQuickMeta,
   pickKnowledgeUpdate,
   quickSaveKnowledge,
@@ -189,29 +198,29 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
         message.payload as RecordExperimentEventPayload
       )
     case "bookmarks-collector/create-snippet-folder":
-      return handleCreateSnippetFolder(
+      return createCollectionFolder(
         message.payload as CreateCollectionFolderPayload
       )
     case "bookmarks-collector/update-snippet-folder":
-      return handleUpdateSnippetFolder(
+      return updateCollectionFolder(
         message.payload as UpdateCollectionFolderPayload
       )
     case "bookmarks-collector/delete-snippet-folder":
-      return handleDeleteSnippetFolder(
+      return deleteCollectionFolder(
         message.payload as DeleteCollectionFolderPayload
       )
     case "bookmarks-collector/update-snippet-item":
-      return handleUpdateSnippetItem(
+      return updateCollectionItem(
         message.payload as UpdateCollectionItemPayload
       )
     case "bookmarks-collector/create-snippet-item":
-      return handleCreateSnippetItem(
+      return createCollectionItem(
         message.payload as CreateCollectionItemPayload
       )
     case "bookmarks-collector/move-snippet-item":
-      return handleMoveSnippetItem(message.payload as MoveCollectionItemPayload)
+      return moveCollectionItem(message.payload as MoveCollectionItemPayload)
     case "bookmarks-collector/delete-snippet-item":
-      return handleDeleteSnippetItem(
+      return deleteCollectionItem(
         message.payload as DeleteCollectionItemPayload
       )
 
@@ -469,112 +478,11 @@ async function handleOpenExtensionPage(payload: ExtensionPageOpenPayload) {
   return { success: true }
 }
 
-async function handleCreateSnippetFolder(
-  payload: CreateCollectionFolderPayload
-): Promise<CollectionFolderMutationResult> {
-  const collections = await createSnippetFolder(
-    payload.name,
-    payload.description
-  )
-  const folder = collections.folders.find(
-    (item) => item.name === payload.name.trim()
-  )
-
-  return {
-    collections,
-    folderId: folder?.id ?? ""
-  }
-}
-
 async function handleRecordExperimentEvent(
   payload: RecordExperimentEventPayload
 ): Promise<ExperimentEvent[]> {
   return recordExperimentEvent(payload)
 }
-
-async function handleUpdateSnippetFolder(
-  payload: UpdateCollectionFolderPayload
-): Promise<CollectionFolderMutationResult> {
-  const collections = await updateSnippetFolder(payload.folderId, {
-    name: payload.name,
-    description: payload.description
-  })
-
-  return {
-    collections,
-    folderId: payload.folderId
-  }
-}
-
-async function handleDeleteSnippetFolder(
-  payload: DeleteCollectionFolderPayload
-): Promise<CollectionFolderMutationResult> {
-  const collections = await deleteSnippetFolder(payload.folderId)
-
-  return {
-    collections,
-    folderId: payload.folderId
-  }
-}
-
-async function handleUpdateSnippetItem(
-  payload: UpdateCollectionItemPayload
-): Promise<CollectionItemMutationResult> {
-  const collections = await updateSnippetCollectionItem(payload.itemId, {
-    title: payload.title,
-    text: payload.text
-  })
-
-  return {
-    collections,
-    itemId: payload.itemId
-  }
-}
-
-async function handleCreateSnippetItem(
-  payload: CreateCollectionItemPayload
-): Promise<CollectionItemMutationResult> {
-  const collections = await addSnippetCollectionItem({
-    folderId: payload.folderId,
-    sourceUrl: payload.sourceUrl ?? "",
-    title: payload.title.trim(),
-    text: payload.text.trim(),
-    originalText: payload.text.trim(),
-    mode: "selection"
-  })
-  const created = collections.items[0]
-
-  return {
-    collections,
-    itemId: created?.id ?? ""
-  }
-}
-
-async function handleMoveSnippetItem(
-  payload: MoveCollectionItemPayload
-): Promise<CollectionItemMutationResult> {
-  const collections = await moveSnippetCollectionItem(
-    payload.itemId,
-    payload.folderId
-  )
-
-  return {
-    collections,
-    itemId: payload.itemId
-  }
-}
-
-async function handleDeleteSnippetItem(
-  payload: DeleteCollectionItemPayload
-): Promise<CollectionItemMutationResult> {
-  const collections = await deleteSnippetCollectionItem(payload.itemId)
-
-  return {
-    collections,
-    itemId: payload.itemId
-  }
-}
-
 async function notifyBookmarkCreated(url: string) {
   const matchedTabs = await chrome.tabs.query({
     url
