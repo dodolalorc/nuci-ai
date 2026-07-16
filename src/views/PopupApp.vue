@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
 
-async function sendMessage<T>(type: string, payload?: unknown): Promise<T> {
-  const response = await chrome.runtime.sendMessage({ type, payload })
-  if (!response?.ok) throw new Error(response?.error ?? "操作失败")
-  return response.payload as T
-}
+import {
+  KNOWLEDGE_MESSAGE,
+  sendKnowledgeMessage
+} from "../sdk/knowledgeMessages"
 
 interface RecentItem {
   id: string
@@ -22,8 +21,8 @@ const isLoading = ref(true)
 onMounted(async () => {
   try {
     const [count, items] = await Promise.all([
-      sendMessage<number>("knowledge/get-today-count"),
-      sendMessage<RecentItem[]>("knowledge/get-recent", { limit: 3 })
+      sendKnowledgeMessage(KNOWLEDGE_MESSAGE.getTodayCount, undefined),
+      sendKnowledgeMessage(KNOWLEDGE_MESSAGE.getRecent, { limit: 3 })
     ])
     todayCount.value = count
     recentItems.value = items
@@ -35,7 +34,7 @@ onMounted(async () => {
 })
 
 function openKnowledgeBase() {
-  chrome.runtime.sendMessage({ type: "knowledge/open-knowledge-base" })
+  void sendKnowledgeMessage(KNOWLEDGE_MESSAGE.openKnowledgeBase, undefined)
 }
 
 function openHistory() {
