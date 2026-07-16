@@ -1,0 +1,37 @@
+README.md
+  s_ccbba2d527f766::t_cb1b46cff72103 111
+src/sdk/bookmarks.ts
+  s_fc93eeb85355c2::t_62ec589e42fbfa 5-6,317
+src/sdk/storage.test.ts
+  s_fc93eeb85355c2::t_99c71abc9046be 1-24
+src/sdk/storage.ts
+  s_fc93eeb85355c2::t_45dbc001ab0548 164-201,235-239,241-242
+src/views/OptionsApp.vue
+  s_fc93eeb85355c2::t_ae8bbf9295d018 305
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "60f4566653c0bb097b9dab72479f3baab530ffea",
+  "prompts": {},
+  "sessions": {
+    "s_ccbba2d527f766": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6a2b-a339-7561-8d57-b018c260dc37",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    },
+    "s_fc93eeb85355c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f697b-04be-78e0-ab90-91e8d93966ac",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
