@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { parseAiJsonResponse } from "./aiService"
+import {
+  normalizeDeepNote,
+  normalizeQuickMeta,
+  parseAiJsonResponse
+} from "./aiService"
 
 describe("parseAiJsonResponse", () => {
   it("accepts a fenced JSON response", () => {
@@ -13,5 +17,39 @@ describe("parseAiJsonResponse", () => {
     expect(() => parseAiJsonResponse('{"summary":')).toThrow(
       "AI 响应 JSON 解析失败"
     )
+  })
+})
+
+describe("AI response normalizers", () => {
+  it("keeps only supported quick metadata fields", () => {
+    expect(
+      normalizeQuickMeta({
+        summary: "  useful summary  ",
+        tags: ["AI", 42, "", "x".repeat(60)],
+        category: "not-a-category",
+        subCategory: 123
+      })
+    ).toEqual({
+      summary: "useful summary",
+      tags: ["AI", "x".repeat(48)],
+      category: "其他",
+      subCategory: undefined
+    })
+  })
+
+  it("normalizes deep note lists and difficulty", () => {
+    expect(
+      normalizeDeepNote({
+        keyPoints: ["point", 1],
+        outline: "invalid",
+        learningNotes: 3,
+        difficulty: "unknown"
+      })
+    ).toMatchObject({
+      keyPoints: ["point"],
+      outline: [],
+      learningNotes: "",
+      difficulty: "intermediate"
+    })
   })
 })

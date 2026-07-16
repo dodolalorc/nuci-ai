@@ -70,6 +70,65 @@ export function parseAiJsonResponse(content: string): unknown {
   }
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("AI 响应 JSON 必须是对象")
+  }
+  return value as Record<string, unknown>
+}
+
+function readText(value: unknown, maxLength: number): string {
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : ""
+}
+
+function readTextList(
+  value: unknown,
+  limit: number,
+  itemMaxLength: number
+): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim().slice(0, itemMaxLength))
+    .filter(Boolean)
+    .slice(0, limit)
+}
+
+function readCategory(value: unknown): string {
+  return typeof value === "string" &&
+    KNOWLEDGE_CATEGORIES.includes(value.trim() as never)
+    ? value.trim()
+    : "其他"
+}
+
+export function normalizeQuickMeta(value: unknown): AiQuickMeta {
+  const parsed = asRecord(value)
+  return {
+    summary: readText(parsed.summary, 2_000),
+    tags: readTextList(parsed.tags, 5, 48),
+    category: readCategory(parsed.category),
+    subCategory: readText(parsed.subCategory, 100) || undefined
+  }
+}
+
+export function normalizeDeepNote(value: unknown): AiDeepNote {
+  const parsed = asRecord(value)
+  const quickMeta = normalizeQuickMeta(parsed)
+  const difficulty = parsed.difficulty
+  return {
+    ...quickMeta,
+    keyPoints: readTextList(parsed.keyPoints, 20, 300),
+    outline: readTextList(parsed.outline, 30, 300),
+    learningNotes: readText(parsed.learningNotes, 8_000),
+    difficulty:
+      difficulty === "beginner" ||
+      difficulty === "intermediate" ||
+      difficulty === "advanced"
+        ? difficulty
+        : "intermediate"
+  }
+}
+
 function resolveActiveProvider(settings: SmartFavoritesSettings) {
   const providers = settings.providers?.length ? settings.providers : []
   return (
@@ -102,14 +161,7 @@ export const aiService = {
       ]
     })
 
-    const parsed = parseAiJsonResponse(result.text) as Partial<AiQuickMeta>
-
-    return {
-      summary: parsed.summary ?? "",
-      tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
-      category: parsed.category ?? "其他",
-      subCategory: parsed.subCategory
-    }
+    return normalizeQuickMeta(parseAiJsonResponse(result.text))
   },
 
   async generateDeepNote(
@@ -134,18 +186,7 @@ export const aiService = {
       ]
     })
 
-    const parsed = parseAiJsonResponse(result.text) as Partial<AiDeepNote>
-
-    return {
-      summary: parsed.summary ?? "",
-      tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
-      category: parsed.category ?? "其他",
-      subCategory: parsed.subCategory,
-      keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints : [],
-      outline: Array.isArray(parsed.outline) ? parsed.outline : [],
-      learningNotes: parsed.learningNotes ?? "",
-      difficulty: parsed.difficulty ?? "intermediate"
-    }
+    return normalizeDeepNote(parseAiJsonResponse(result.text))
   },
 
   async regenerateSummary(
