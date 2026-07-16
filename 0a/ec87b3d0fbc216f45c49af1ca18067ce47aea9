@@ -1,0 +1,41 @@
+src/sdk/bookmarks.ts
+  s_ea6a09d6636d1d::t_cd6a0eeb244995 3,10,13,18,181-184,304-311,314,318
+src/sdk/client.ts
+  s_fc93eeb85355c2::t_332126e31482bc 7,12,21,29,31-33,35,37-40,141-143,193-200
+src/sdk/storage.ts
+  s_fc93eeb85355c2::t_e9a37f68a1f642 10,17-18,21,23,46-48,124-138,204-206,228,258-260,380-382,527-530,587-589,629-631,634-636
+src/sdk/types/settings.ts
+  s_fc93eeb85355c2::t_450e5b59fd407c 1-2,4,49,52,54
+src/services/knowledgeStorage.ts
+  s_fc93eeb85355c2::t_8e02e40581ce00 173
+src/types/knowledge.ts
+  s_fc93eeb85355c2::t_d4611f9e411980 61
+src/views/OptionsApp.vue
+  s_fc93eeb85355c2::t_8be170edcdfc0a 6,23,89-90,136,139,142,146-147,149-151,183,186-188,190-191,195,204-206,211,272,274-276,716,1235,1237-1238,1243-1244,1248-1249,1261-1264,1271-1273,1275-1277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0aec87b3d0fbc216f45c49af1ca18067ce47aea9",
+  "prompts": {},
+  "sessions": {
+    "s_ea6a09d6636d1d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6984-b35d-70d1-a9d9-3b3cbf5cd916",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    },
+    "s_fc93eeb85355c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f697b-04be-78e0-ab90-91e8d93966ac",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
