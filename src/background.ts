@@ -28,7 +28,6 @@ import {
   getSnippetCollections,
   importSnapshotData,
   moveSnippetCollectionItem,
-  pushKnowledgeRecord,
   pushRecommendationFeedback,
   recordExperimentEvent,
   removeCapturedSnippet,
@@ -351,15 +350,26 @@ async function handleApplyBookmark(payload: ApplyBookmarkPayload) {
   await pushRecommendationFeedback(payload.input, result.folderPath)
 
   if (settings.behavior.storeKnowledge) {
-    await pushKnowledgeRecord({
-      createdAt: new Date().toISOString(),
+    const folderSegments = result.folderPath
+      .split("/")
+      .map((segment) => segment.trim())
+      .filter(Boolean)
+
+    await knowledgeStorage.upsertByUrl({
       title: payload.page.title,
       url: payload.page.url,
-      folderPath: result.folderPath,
+      siteName: payload.page.domain,
+      sourceType: "bookmark",
+      content:
+        payload.input.selectedText?.trim() ||
+        payload.page.summary?.trim() ||
+        payload.input.notes?.trim() ||
+        "",
+      excerpt: payload.page.summary?.trim() || payload.input.notes?.trim(),
       tags: payload.input.tags,
-      selectedText: payload.input.selectedText,
-      notes: payload.input.notes,
-      source: payload.recommendation.type
+      category: folderSegments.at(-1) || "书签归档",
+      subCategory: result.folderPath,
+      aiStatus: "pending"
     })
   }
 
