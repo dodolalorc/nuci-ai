@@ -1,4 +1,5 @@
 import { getSettings } from "~/src/sdk/storage"
+import type { PageContext, RecommendationInput } from "~/src/sdk/types"
 import { aiService } from "~/src/services/aiService"
 import { knowledgeStorage } from "~/src/services/knowledgeStorage"
 import type {
@@ -161,5 +162,33 @@ export async function retryKnowledgeAi(id: string) {
     category: meta.category,
     subCategory: meta.subCategory,
     aiStatus: "success"
+  })
+}
+
+export async function saveConfirmedBookmarkKnowledge(
+  page: PageContext,
+  input: RecommendationInput,
+  folderPath: string
+) {
+  const folderSegments = folderPath
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+
+  return knowledgeStorage.upsertByUrl({
+    title: page.title,
+    url: page.url,
+    siteName: page.domain,
+    sourceType: "bookmark",
+    content:
+      input.selectedText?.trim() ||
+      page.summary?.trim() ||
+      input.notes?.trim() ||
+      "",
+    excerpt: page.summary?.trim() || input.notes?.trim(),
+    tags: input.tags,
+    category: folderSegments.at(-1) || "书签归档",
+    subCategory: folderPath,
+    aiStatus: "pending"
   })
 }

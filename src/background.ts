@@ -71,6 +71,7 @@ import {
   pickKnowledgeUpdate,
   quickSaveKnowledge,
   retryKnowledgeAi,
+  saveConfirmedBookmarkKnowledge,
   saveKnowledgeSelection,
   saveKnowledgeWithMeta
 } from "~/src/services/knowledgeService"
@@ -347,27 +348,11 @@ async function handleApplyBookmark(payload: ApplyBookmarkPayload) {
   await pushRecommendationFeedback(payload.input, result.folderPath)
 
   if (settings.behavior.storeKnowledge) {
-    const folderSegments = result.folderPath
-      .split("/")
-      .map((segment) => segment.trim())
-      .filter(Boolean)
-
-    await knowledgeStorage.upsertByUrl({
-      title: payload.page.title,
-      url: payload.page.url,
-      siteName: payload.page.domain,
-      sourceType: "bookmark",
-      content:
-        payload.input.selectedText?.trim() ||
-        payload.page.summary?.trim() ||
-        payload.input.notes?.trim() ||
-        "",
-      excerpt: payload.page.summary?.trim() || payload.input.notes?.trim(),
-      tags: payload.input.tags,
-      category: folderSegments.at(-1) || "书签归档",
-      subCategory: result.folderPath,
-      aiStatus: "pending"
-    })
+    await saveConfirmedBookmarkKnowledge(
+      payload.page,
+      payload.input,
+      result.folderPath
+    )
   }
 
   return result
