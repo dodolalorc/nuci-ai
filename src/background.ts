@@ -66,13 +66,16 @@ import type {
   UpdateCollectionFolderPayload,
   UpdateCollectionItemPayload
 } from "~/src/sdk/types"
-import { aiService } from "~/src/services/aiService"
+import {
+  generateQuickMeta,
+  pickKnowledgeUpdate,
+  quickSaveKnowledge,
+  retryKnowledgeAi,
+  saveKnowledgeSelection,
+  saveKnowledgeWithMeta
+} from "~/src/services/knowledgeService"
 import { knowledgeStorage } from "~/src/services/knowledgeStorage"
-import type {
-  KnowledgeQuery,
-  KnowledgeUpdatePatch,
-  QuickSavePayload
-} from "~/src/types/knowledge"
+import type { KnowledgeQuery, QuickSavePayload } from "~/src/types/knowledge"
 
 chrome.bookmarks.onCreated.addListener((_, node) => {
   if (!node.url?.startsWith("http")) {
@@ -209,15 +212,11 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
 
     // ── Knowledge Base (new) ──────────────────────────────
     case "knowledge/quick-save":
-      return handleKnowledgeQuickSave(
-        message.payload as Partial<QuickSavePayload>
-      )
+      return quickSaveKnowledge(message.payload as Partial<QuickSavePayload>)
     case "knowledge/generate-quick-meta":
-      return handleKnowledgeGenerateQuickMeta(
-        message.payload as Partial<QuickSavePayload>
-      )
+      return generateQuickMeta(message.payload as Partial<QuickSavePayload>)
     case "knowledge/save-with-meta":
-      return handleKnowledgeSaveWithMeta(
+      return saveKnowledgeWithMeta(
         message.payload as Partial<QuickSavePayload> & {
           summary?: string
           tags?: string[]
@@ -225,9 +224,7 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
         }
       )
     case "knowledge/save-selection":
-      return handleKnowledgeSaveSelection(
-        message.payload as { selectedText: string }
-      )
+      return saveKnowledgeSelection(message.payload as { selectedText: string })
     case "knowledge/list":
       return knowledgeStorage.list(message.payload as KnowledgeQuery)
     case "knowledge/update":
@@ -238,7 +235,7 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
     case "knowledge/delete":
       return knowledgeStorage.delete((message.payload as { id: string }).id)
     case "knowledge/retry-ai":
-      return handleKnowledgeRetryAi((message.payload as { id: string }).id)
+      return retryKnowledgeAi((message.payload as { id: string }).id)
     case "knowledge/get-today-count":
       return knowledgeStorage.getTodayCount()
     case "knowledge/get-recent":
@@ -680,203 +677,4 @@ async function notifyBookmarkCreated(url: string) {
           .catch(() => undefined)
       )
   )
-}
-
-// ── Knowledge Base Handlers ──────────────────────────────────────────────
-
-function normalizePagePayload(
-  payload: Partial<QuickSavePayload>
-): QuickSavePayload {
-  const title = payload.title?.trim()
-  const url = payload.url?.trim()
-  const content = payload.content?.trim()
-
-  if (!title || !url || !content) {
-    throw new Error("页面内容不完整，请刷新页面后重试。")
-  }
-
-  try {
-    const parsed = new URL(url)
-    if (!/^https?:$/.test(parsed.protocol)) throw new Error()
-  } catch {
-    throw new Error("当前页面链接不可保存。")
-  }
-
-  return {
-    title: title.slice(0, 500),
-    url,
-    content: content.slice(0, 32_000),
-    excerpt: payload.excerpt?.trim().slice(0, 1_000),
-    siteName: payload.siteName?.trim().slice(0, 200),
-    sourceType: payload.sourceType ?? "page"
-  }
-}
-
-function pickKnowledgeUpdate(payload: unknown): Partial<KnowledgeUpdatePatch> {
-  const input = payload as Record<string, unknown>
-  const allowed = [
-    "title",
-    "content",
-    "excerpt",
-    "siteName",
-    "summary",
-    "tags",
-    "category",
-    "subCategory",
-    "keyPoints",
-    "outline",
-    "learningNotes",
-    "highlights",
-    "aiStatus",
-    "favorite",
-    "archived"
-  ] as const
-
-  return Object.fromEntries(
-    allowed.filter((key) => key in input).map((key) => [key, input[key]])
-  ) as Partial<KnowledgeUpdatePatch>
-}
-
-async function handleKnowledgeQuickSave(payload: Partial<QuickSavePayload>) {
-  const pageData = normalizePagePayload(payload)
-  const settings = await getSettings()
-
-  let meta: {
-    summary: string
-    tags: string[]
-    category: string
-    subCategory?: string
-  } = {
-    summary: "",
-    tags: [],
-    category: "其他",
-    subCategory: undefined
-  }
-
-  try {
-    const aiMeta = await aiService.generateQuickMeta(
-      pageData.title,
-      pageData.content,
-      settings
-    )
-    meta = aiMeta
-  } catch {
-    // AI failure - save without metadata, status = failed
-  }
-
-  const item = await knowledgeStorage.upsertByUrl({
-    title: pageData.title,
-    url: pageData.url,
-    content: pageData.content,
-    excerpt: pageData.excerpt,
-    siteName: pageData.siteName,
-    sourceType: payload.sourceType ?? "page",
-    summary: meta.summary || undefined,
-    tags: meta.tags,
-    category: meta.category,
-    subCategory: meta.subCategory,
-    aiStatus: meta.summary ? "success" : "pending"
-  })
-
-  return item
-}
-
-async function handleKnowledgeGenerateQuickMeta(
-  payload: Partial<QuickSavePayload>
-) {
-  const pageData = normalizePagePayload(payload)
-  const settings = await getSettings()
-  return aiService.generateQuickMeta(pageData.title, pageData.content, settings)
-}
-
-async function handleKnowledgeSaveWithMeta(
-  payload: Partial<QuickSavePayload> & {
-    summary?: string
-    tags?: string[]
-    category?: string
-  }
-) {
-  const pageData = normalizePagePayload(payload)
-
-  const item = await knowledgeStorage.upsertByUrl({
-    title: payload.title ?? pageData.title,
-    url: pageData.url,
-    content: pageData.content,
-    excerpt: pageData.excerpt,
-    siteName: pageData.siteName,
-    sourceType: payload.sourceType ?? "page",
-    summary: payload.summary,
-    tags: payload.tags ?? [],
-    category: payload.category ?? "其他",
-    aiStatus: "success"
-  })
-
-  return item
-}
-
-async function handleKnowledgeSaveSelection(
-  payload: { selectedText: string } & Partial<QuickSavePayload>
-) {
-  const pageData = normalizePagePayload({
-    ...payload,
-    content: payload.selectedText,
-    sourceType: "selection"
-  })
-  const settings = await getSettings()
-
-  let meta: {
-    summary: string
-    tags: string[]
-    category: string
-    subCategory?: string
-  } = {
-    summary: "",
-    tags: [],
-    category: "其他",
-    subCategory: undefined
-  }
-
-  try {
-    const aiMeta = await aiService.generateQuickMeta(
-      pageData.title,
-      pageData.content,
-      settings
-    )
-    meta = aiMeta
-  } catch {
-    // AI failure
-  }
-
-  return knowledgeStorage.upsertByUrl({
-    title: pageData.title,
-    url: pageData.url,
-    content: pageData.content,
-    excerpt: pageData.excerpt,
-    siteName: pageData.siteName,
-    sourceType: "selection",
-    summary: meta.summary || undefined,
-    tags: meta.tags,
-    category: meta.category,
-    aiStatus: meta.summary ? "success" : "pending"
-  })
-}
-
-async function handleKnowledgeRetryAi(id: string) {
-  const item = await knowledgeStorage.getById(id)
-  if (!item) throw new Error("知识条目不存在")
-
-  const settings = await getSettings()
-  const meta = await aiService.generateQuickMeta(
-    item.title,
-    item.content,
-    settings
-  )
-
-  return knowledgeStorage.update(id, {
-    summary: meta.summary,
-    tags: meta.tags,
-    category: meta.category,
-    subCategory: meta.subCategory,
-    aiStatus: "success"
-  })
 }
