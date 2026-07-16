@@ -77,4 +77,37 @@ describe("knowledgeStorage", () => {
     })
     expect(await knowledgeStorage.list()).toHaveLength(1)
   })
+
+  it("keeps existing AI metadata when a later quick save cannot use AI", async () => {
+    const { knowledgeStorage } = await import("./knowledgeStorage")
+    const first = await knowledgeStorage.upsertByUrl({
+      title: "Article",
+      url: "https://example.com/article",
+      content: "Original content",
+      sourceType: "page",
+      summary: "Edited summary",
+      tags: ["Important"],
+      category: "产品",
+      aiStatus: "success"
+    })
+
+    const updated = await knowledgeStorage.upsertByUrl({
+      title: "Article",
+      url: "https://example.com/article",
+      content: "Freshly extracted content",
+      sourceType: "page",
+      tags: [],
+      category: "其他",
+      aiStatus: "pending"
+    })
+
+    expect(updated).toMatchObject({
+      id: first.id,
+      content: "Freshly extracted content",
+      summary: "Edited summary",
+      tags: ["Important"],
+      category: "产品",
+      aiStatus: "success"
+    })
+  })
 })

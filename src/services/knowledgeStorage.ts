@@ -93,6 +93,8 @@ export const knowledgeStorage = {
     if (index === -1) return this.create(payload)
 
     const current = items[index]
+    const preserveExistingAiResult =
+      payload.aiStatus === "pending" && current.aiStatus === "success"
     const updated: KnowledgeItem = {
       ...current,
       ...payload,
@@ -100,6 +102,13 @@ export const knowledgeStorage = {
       schemaVersion: 1,
       favorite: current.favorite,
       archived: current.archived,
+      summary: preserveExistingAiResult ? current.summary : payload.summary,
+      tags: preserveExistingAiResult ? current.tags : payload.tags,
+      category: preserveExistingAiResult ? current.category : payload.category,
+      subCategory: preserveExistingAiResult
+        ? current.subCategory
+        : payload.subCategory,
+      aiStatus: preserveExistingAiResult ? current.aiStatus : payload.aiStatus,
       createdAt: current.createdAt,
       updatedAt: Date.now()
     }
