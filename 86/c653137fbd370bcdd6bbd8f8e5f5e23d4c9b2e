@@ -1,0 +1,23 @@
+src/services/aiService.test.ts
+  s_ccbba2d527f766::t_6f8693d0187e33 3-7,22-55
+src/services/aiService.ts
+  s_ccbba2d527f766::t_cb7fe811c9ce5c 73-131,164,189
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "86c653137fbd370bcdd6bbd8f8e5f5e23d4c9b2e",
+  "prompts": {},
+  "sessions": {
+    "s_ccbba2d527f766": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6a2b-a339-7561-8d57-b018c260dc37",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
