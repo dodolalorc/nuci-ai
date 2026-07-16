@@ -6,20 +6,21 @@ import {
 import { tokenize, unique } from "~/src/sdk/text"
 import type {
   AiModelProfile,
-  ExperimentEvent,
-  RecordExperimentEventPayload,
   CapturedSnippet,
+  ExperimentEvent,
   ExportSnapshot,
   ImportSnapshotResult,
   KnowledgeRecord,
   PageCaptureDraft,
   RecommendationFeedbackEntry,
   RecommendationInput,
+  RecordExperimentEventPayload,
+  SmartFavoritesSettings,
   SnippetCollectionFolder,
   SnippetCollectionItem,
-  SnippetCollectionState,
-  SmartFavoritesSettings
+  SnippetCollectionState
 } from "~/src/sdk/types"
+import type { KnowledgeItem } from "~/src/types/knowledge"
 
 const UNCATEGORIZED_FOLDER_ID = "uncategorized"
 const UNCATEGORIZED_FOLDER_NAME = "未分类内容"
@@ -42,7 +43,9 @@ function normalizeCollections(
   const defaultFolder = createDefaultFolder()
   const folders = [...(state?.folders ?? [])]
   const items = [...(state?.items ?? [])]
-  const existingDefault = folders.find((folder) => folder.id === UNCATEGORIZED_FOLDER_ID)
+  const existingDefault = folders.find(
+    (folder) => folder.id === UNCATEGORIZED_FOLDER_ID
+  )
 
   const normalizedFolders = existingDefault
     ? folders.map((folder) =>
@@ -118,15 +121,21 @@ function normalizeProviders(
       ]
 
   const providers = providersSource
-    .map((provider, index): AiModelProfile => ({
-      id: provider.id?.trim() || `${DEFAULT_PROVIDER_ID}-${index + 1}`,
-      label: provider.label?.trim() || provider.model?.trim() || `模型 ${index + 1}`,
-      baseUrl: provider.baseUrl?.trim() || DEFAULT_SETTINGS.provider.baseUrl,
-      apiKey: provider.apiKey ?? "",
-      model: provider.model?.trim() ?? ""
-    }))
-    .filter((provider, index, list) =>
-      list.findIndex((item) => item.id === provider.id) === index
+    .map(
+      (provider, index): AiModelProfile => ({
+        id: provider.id?.trim() || `${DEFAULT_PROVIDER_ID}-${index + 1}`,
+        label:
+          provider.label?.trim() ||
+          provider.model?.trim() ||
+          `模型 ${index + 1}`,
+        baseUrl: provider.baseUrl?.trim() || DEFAULT_SETTINGS.provider.baseUrl,
+        apiKey: provider.apiKey ?? "",
+        model: provider.model?.trim() ?? ""
+      })
+    )
+    .filter(
+      (provider, index, list) =>
+        list.findIndex((item) => item.id === provider.id) === index
     )
 
   if (providers.length === 0) {
@@ -192,6 +201,9 @@ export async function importSnapshotData(
   const knowledge = Array.isArray(snapshot.knowledge)
     ? snapshot.knowledge.slice(0, 300)
     : []
+  const knowledgeItems = Array.isArray(snapshot.knowledgeItems)
+    ? snapshot.knowledgeItems.slice(0, 500)
+    : []
   const drafts = Array.isArray(snapshot.drafts) ? snapshot.drafts : []
   const analytics = Array.isArray(snapshot.analytics)
     ? snapshot.analytics.slice(0, 1000)
@@ -213,6 +225,7 @@ export async function importSnapshotData(
   await chrome.storage.local.set({
     [STORAGE_KEYS.settings]: normalizedSettings,
     [STORAGE_KEYS.knowledge]: knowledge,
+    [STORAGE_KEYS.knowledgeItems]: knowledgeItems as KnowledgeItem[],
     [STORAGE_KEYS.analytics]: analytics,
     [STORAGE_KEYS.drafts]: draftMap,
     [STORAGE_KEYS.collections]: collections
@@ -242,7 +255,9 @@ export async function getSnippetCollections(): Promise<SnippetCollectionState> {
 
   if (
     normalized.folders.length !== (state.folders?.length ?? 0) ||
-    normalized.items.some((item, index) => item.folderId !== state.items?.[index]?.folderId)
+    normalized.items.some(
+      (item, index) => item.folderId !== state.items?.[index]?.folderId
+    )
   ) {
     await saveCollectionState(normalized)
   }
@@ -362,7 +377,9 @@ export async function moveSnippetCollectionItem(
   folderId: string
 ): Promise<SnippetCollectionState> {
   const current = await getSnippetCollections()
-  const resolvedFolderId = current.folders.some((folder) => folder.id === folderId)
+  const resolvedFolderId = current.folders.some(
+    (folder) => folder.id === folderId
+  )
     ? folderId
     : UNCATEGORIZED_FOLDER_ID
 
@@ -507,7 +524,10 @@ export async function getCaptureDraft(url: string): Promise<PageCaptureDraft> {
   )
 }
 
-export async function addCapturedSnippet(url: string, snippet: CapturedSnippet) {
+export async function addCapturedSnippet(
+  url: string,
+  snippet: CapturedSnippet
+) {
   const draftMap = await getDraftMap()
   const current = draftMap[url] ?? {
     url,
@@ -564,7 +584,9 @@ export async function removeCapturedSnippet(url: string, snippetId: string) {
   })
 
   const collections = await getSnippetCollections()
-  const linkedItem = collections.items.find((item) => item.snippetId === snippetId)
+  const linkedItem = collections.items.find(
+    (item) => item.snippetId === snippetId
+  )
 
   if (linkedItem) {
     await saveCollectionState({
@@ -604,10 +626,14 @@ export async function updateCapturedSnippet(
     [STORAGE_KEYS.drafts]: draftMap
   })
 
-  const updated = draftMap[url]?.snippets.find((snippet) => snippet.id === snippetId)
+  const updated = draftMap[url]?.snippets.find(
+    (snippet) => snippet.id === snippetId
+  )
   if (updated) {
     const collections = await getSnippetCollections()
-    const existingItem = collections.items.find((item) => item.snippetId === snippetId)
+    const existingItem = collections.items.find(
+      (item) => item.snippetId === snippetId
+    )
 
     if (existingItem) {
       await saveCollectionState({

@@ -1,6 +1,7 @@
-import type { BookmarkFolder } from "./bookmarks"
+import type { KnowledgeItem } from "~/src/types/knowledge"
+
 import type { ExperimentEvent } from "./analytics"
-import type { SnippetCollectionState } from "./bookmarks"
+import type { BookmarkFolder, SnippetCollectionState } from "./bookmarks"
 import type { PageCaptureDraft } from "./page"
 
 export interface AiProviderSettings {
@@ -45,9 +46,12 @@ export interface KnowledgeRecord {
 }
 
 export interface ExportSnapshot {
+  schemaVersion?: 2
   exportedAt: string
   settings: SmartFavoritesSettings
+  /** Legacy bookmark knowledge data, retained for imports created before v2. */
   knowledge: KnowledgeRecord[]
+  knowledgeItems?: KnowledgeItem[]
   analytics: ExperimentEvent[]
   folders: BookmarkFolder[]
   drafts: PageCaptureDraft[]

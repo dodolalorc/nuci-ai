@@ -1,20 +1,21 @@
 import {
-  getExperimentEvents,
   getAllCaptureDrafts,
+  getExperimentEvents,
   getKnowledgeRecords,
   getSnippetCollections
 } from "~/src/sdk/storage"
 import type {
   ApplyBookmarkPayload,
-  BookmarkItem,
   BookmarkFolder,
+  BookmarkItem,
   BookmarkMoveDecision,
-  BulkBookmarkApplyResult,
   BookmarkMutationResult,
+  BulkBookmarkApplyResult,
   ExportSnapshot,
   FolderIndex,
   SmartFavoritesSettings
 } from "~/src/sdk/types"
+import { knowledgeStorage } from "~/src/services/knowledgeStorage"
 
 function rootTitleFor(node: chrome.bookmarks.BookmarkTreeNode) {
   if (node.id === "0") {
@@ -177,7 +178,10 @@ async function findExistingBookmark(url: string) {
 }
 
 async function resolveFolder(payload: ApplyBookmarkPayload) {
-  if (payload.recommendation.type === "existing" && payload.recommendation.folderId) {
+  if (
+    payload.recommendation.type === "existing" &&
+    payload.recommendation.folderId
+  ) {
     const [folder] = await chrome.bookmarks.get(payload.recommendation.folderId)
     if (folder) {
       return folder
@@ -297,17 +301,21 @@ export async function buildExportSnapshot(
   settings: SmartFavoritesSettings,
   folderIndex: FolderIndex
 ): Promise<ExportSnapshot> {
-  const [knowledge, analytics, drafts, collections] = await Promise.all([
-    getKnowledgeRecords(),
-    getExperimentEvents(),
-    getAllCaptureDrafts(),
-    getSnippetCollections()
-  ])
+  const [knowledge, knowledgeItems, analytics, drafts, collections] =
+    await Promise.all([
+      getKnowledgeRecords(),
+      knowledgeStorage.list({ includeArchived: true }),
+      getExperimentEvents(),
+      getAllCaptureDrafts(),
+      getSnippetCollections()
+    ])
 
   return {
+    schemaVersion: 2,
     exportedAt: new Date().toISOString(),
     settings,
     knowledge,
+    knowledgeItems,
     analytics,
     folders: folderIndex.folders,
     drafts,

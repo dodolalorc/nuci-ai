@@ -170,7 +170,7 @@ export const knowledgeStorage = {
 
     if (query.archived !== undefined) {
       items = items.filter((item) => Boolean(item.archived) === query.archived)
-    } else {
+    } else if (!query.includeArchived) {
       items = items.filter((item) => !item.archived)
     }
 

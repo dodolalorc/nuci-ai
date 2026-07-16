@@ -4,12 +4,12 @@ import type {
   BookmarkMoveDecision,
   BookmarkMutationResult,
   BulkBookmarkApplyResult,
+  CapturedSnippet,
   CapturePageResponse,
   CollectionFolderMutationResult,
   CollectionItemMutationResult,
-  CapturedSnippet,
-  CreateCollectionItemPayload,
   CreateCollectionFolderPayload,
+  CreateCollectionItemPayload,
   DeleteCollectionFolderPayload,
   DeleteCollectionItemPayload,
   ExperimentEvent,
@@ -18,22 +18,26 @@ import type {
   ImportSnapshotResult,
   KnowledgeRecord,
   MoveCollectionItemPayload,
+  PageCaptureDraft,
   PageDigestRequest,
   PageDigestResult,
-  PageCaptureDraft,
   RecommendationInput,
   RecommendationResult,
   RecordExperimentEventPayload,
   SegmentSelectionResult,
-  SnippetCollectionState,
   SmartFavoritesSettings,
-  UpdateCollectionFolderPayload,
-  UpdateCollectionItemPayload,
+  SnippetCollectionState,
   UpdateActiveProviderPayload,
-  UpdateCapturedSnippetTagsPayload
+  UpdateCapturedSnippetTagsPayload,
+  UpdateCollectionFolderPayload,
+  UpdateCollectionItemPayload
 } from "~/src/sdk/types"
+import type { KnowledgeItem } from "~/src/types/knowledge"
 
-async function sendRuntimeMessage<T>(type: string, payload?: unknown): Promise<T> {
+async function sendRuntimeMessage<T>(
+  type: string,
+  payload?: unknown
+): Promise<T> {
   const response = await chrome.runtime.sendMessage({
     type,
     payload
@@ -134,7 +138,9 @@ export class SmartFavoritesSDK {
   }
 
   async exportSnapshot() {
-    return sendRuntimeMessage<ExportSnapshot>("bookmarks-collector/export-snapshot")
+    return sendRuntimeMessage<ExportSnapshot>(
+      "bookmarks-collector/export-snapshot"
+    )
   }
 
   async importSnapshot(snapshot: ExportSnapshot) {
@@ -182,6 +188,14 @@ export class SmartFavoritesSDK {
     return sendRuntimeMessage<KnowledgeRecord[]>(
       "bookmarks-collector/get-knowledge-records"
     )
+  }
+
+  async listKnowledgeItems() {
+    return sendRuntimeMessage<KnowledgeItem[]>("knowledge/list", {
+      orderBy: "createdAt",
+      orderDir: "desc",
+      includeArchived: true
+    })
   }
 
   async getExperimentEvents() {

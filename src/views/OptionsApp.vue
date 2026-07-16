@@ -3,10 +3,10 @@ import { computed, onMounted, ref } from "vue"
 
 import { SmartFavoritesSDK } from "../sdk/client"
 import {
+  DEFAULT_PROMPT_TEMPLATE,
   DEFAULT_PROVIDER_BASE_URL,
   DEFAULT_PROVIDER_LABEL,
   DEFAULT_PROVIDER_MODEL,
-  DEFAULT_PROMPT_TEMPLATE,
   DEFAULT_SYSTEM_PROMPT
 } from "../sdk/constants"
 import { getProviderConfigNotice, resolveProvider } from "../sdk/provider"
@@ -15,12 +15,12 @@ import type {
   BookmarkMoveDecision,
   ExportSnapshot,
   HistoryRecommendationItem,
-  KnowledgeRecord,
   SmartFavoritesSettings,
   SnippetCollectionFolder,
   SnippetCollectionItem,
   SnippetCollectionState
 } from "../sdk/types"
+import type { KnowledgeItem } from "../types/knowledge"
 import BaseButton from "../ui/BaseButton.vue"
 import BaseCard from "../ui/BaseCard.vue"
 import FormField from "../ui/FormField.vue"
@@ -86,8 +86,8 @@ const collections = ref<SnippetCollectionState>({
   folders: [],
   items: []
 })
-const knowledgeRecords = ref<KnowledgeRecord[]>([])
-const knowledgeStatus = ref("正在加载知识记录…")
+const knowledgeItems = ref<KnowledgeItem[]>([])
+const knowledgeStatus = ref("正在加载知识条目…")
 const knowledgeQuery = ref("")
 const collectionsStatus = ref("正在加载收藏夹…")
 const showApiKey = ref(false)
@@ -133,20 +133,22 @@ const hasAnyManagedContent = computed(
     collections.value.folders.length > 1 || collections.value.items.length > 0
 )
 
-const filteredKnowledgeRecords = computed(() => {
+const filteredKnowledgeItems = computed(() => {
   const query = knowledgeQuery.value.trim().toLowerCase()
   if (!query) {
-    return knowledgeRecords.value
+    return knowledgeItems.value
   }
 
-  return knowledgeRecords.value.filter((record) =>
+  return knowledgeItems.value.filter((record) =>
     [
       record.title,
       record.url,
-      record.folderPath,
+      record.category,
+      record.subCategory ?? "",
       record.tags.join(" "),
-      record.notes ?? "",
-      record.selectedText ?? ""
+      record.summary ?? "",
+      record.learningNotes ?? "",
+      record.content
     ]
       .join("\n")
       .toLowerCase()
@@ -178,18 +180,19 @@ const activeProviderNotice = computed(() => {
 
 const knowledgeInsightCards = computed(() => {
   const tagCount = new Set(
-    knowledgeRecords.value.flatMap((record) => record.tags)
+    knowledgeItems.value.flatMap((record) => record.tags)
   ).size
   const folderCount = new Set(
-    knowledgeRecords.value.map((record) => record.folderPath || "uncategorized")
+    knowledgeItems.value.map(
+      (record) => record.subCategory || record.category || "uncategorized"
+    )
   ).size
-  const recentCount = knowledgeRecords.value.filter((record) => {
-    const time = new Date(record.createdAt).getTime()
-    return !Number.isNaN(time) && Date.now() - time <= 7 * 24 * 60 * 60 * 1000
+  const recentCount = knowledgeItems.value.filter((record) => {
+    return Date.now() - record.createdAt <= 7 * 24 * 60 * 60 * 1000
   }).length
 
   return [
-    { label: "知识记录", value: String(knowledgeRecords.value.length) },
+    { label: "知识条目", value: String(knowledgeItems.value.length) },
     { label: "目录类别", value: String(folderCount) },
     { label: "标签数量", value: String(tagCount) },
     { label: "近 7 日新增", value: String(recentCount) }
@@ -198,12 +201,14 @@ const knowledgeInsightCards = computed(() => {
 
 const knowledgeFolderDistribution = computed(() =>
   buildDistribution(
-    knowledgeRecords.value.map((record) => record.folderPath || "未分类")
+    knowledgeItems.value.map(
+      (record) => record.subCategory || record.category || "未分类"
+    )
   )
 )
 
 const knowledgeTagDistribution = computed(() =>
-  buildDistribution(knowledgeRecords.value.flatMap((record) => record.tags))
+  buildDistribution(knowledgeItems.value.flatMap((record) => record.tags))
 )
 
 onMounted(() => {
@@ -264,11 +269,11 @@ const loadCollections = async () => {
 }
 
 const loadKnowledgeRecords = async () => {
-  knowledgeRecords.value = await sdk.getKnowledgeRecords()
+  knowledgeItems.value = await sdk.listKnowledgeItems()
   knowledgeStatus.value =
-    knowledgeRecords.value.length > 0
-      ? `已加载 ${knowledgeRecords.value.length} 条知识记录。`
-      : "当前还没有知识记录，执行书签确认后会在这里沉淀学习轨迹。"
+    knowledgeItems.value.length > 0
+      ? `已加载 ${knowledgeItems.value.length} 条知识条目。`
+      : "当前还没有知识条目，保存网页或确认书签归档后会在这里沉淀内容。"
 }
 
 const saveSettings = async () => {
@@ -708,7 +713,7 @@ const handleCollectionCardStartEdit = (itemId: string) => {
   startEditItem(target)
 }
 
-const formatKnowledgeTime = (value: string) => {
+const formatKnowledgeTime = (value: string | number) => {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 }
@@ -1227,21 +1232,21 @@ const distributionStyle = (ratio: number) => ({
           <input
             v-model="knowledgeQuery"
             class="field"
-            placeholder="搜索标题、标签、来源网址、目录路径或备注" />
+            placeholder="搜索标题、标签、来源网址、分类、摘要或正文" />
           <div class="status">
-            当前显示 {{ filteredKnowledgeRecords.length }} /
-            {{ knowledgeRecords.length }} 条
+            当前显示 {{ filteredKnowledgeItems.length }} /
+            {{ knowledgeItems.length }} 条
           </div>
         </div>
       </BaseCard>
 
-      <BaseCard v-if="filteredKnowledgeRecords.length === 0" class="soft-empty">
-        没有匹配的知识记录。可以先在浏览器中执行一次收藏确认，或换一个搜索词。
+      <BaseCard v-if="filteredKnowledgeItems.length === 0" class="soft-empty">
+        没有匹配的知识条目。可以先保存网页、确认书签归档，或换一个搜索词。
       </BaseCard>
 
       <BaseCard
-        v-for="record in filteredKnowledgeRecords"
-        :key="`${record.createdAt}-${record.url}`"
+        v-for="record in filteredKnowledgeItems"
+        :key="record.id"
         class="knowledge-card">
         <div class="knowledge-head">
           <div>
@@ -1253,21 +1258,23 @@ const distributionStyle = (ratio: number) => ({
           </div>
         </div>
         <div class="knowledge-meta">
-          <span>目录：{{ record.folderPath || "未记录" }}</span>
-          <span>来源：{{ record.source }}</span>
+          <span
+            >分类：{{ record.subCategory || record.category || "未分类" }}</span
+          >
+          <span>来源：{{ record.sourceType }}</span>
         </div>
         <div v-if="record.tags.length" class="tag-row">
           <span v-for="tag in record.tags" :key="tag" class="tag-chip">{{
             tag
           }}</span>
         </div>
-        <div v-if="record.notes" class="knowledge-block">
-          <div class="knowledge-label">备注</div>
-          <div>{{ record.notes }}</div>
+        <div v-if="record.summary" class="knowledge-block">
+          <div class="knowledge-label">摘要</div>
+          <div>{{ record.summary }}</div>
         </div>
-        <div v-if="record.selectedText" class="knowledge-block">
-          <div class="knowledge-label">选中片段</div>
-          <div class="knowledge-quote">{{ record.selectedText }}</div>
+        <div v-if="record.content" class="knowledge-block">
+          <div class="knowledge-label">内容摘录</div>
+          <div class="knowledge-quote">{{ record.content.slice(0, 500) }}</div>
         </div>
       </BaseCard>
     </template>

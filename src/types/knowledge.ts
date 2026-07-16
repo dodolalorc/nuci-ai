@@ -58,6 +58,7 @@ export interface KnowledgeQuery {
   sourceType?: KnowledgeItem["sourceType"]
   favorite?: boolean
   archived?: boolean
+  includeArchived?: boolean
   orderBy?: "createdAt" | "updatedAt"
   orderDir?: "asc" | "desc"
   limit?: number
