@@ -1,0 +1,21 @@
+src/background.ts
+  s_fc93eeb85355c2::t_064418482e6889 353-358,361-368,370-372
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5b40fa45ae40af5e2a496736665e5917cf31fcfc",
+  "prompts": {},
+  "sessions": {
+    "s_fc93eeb85355c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f697b-04be-78e0-ab90-91e8d93966ac",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
