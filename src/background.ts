@@ -7,7 +7,6 @@ import {
 } from "~/src/sdk/bookmarks"
 import { recommendFolders } from "~/src/sdk/folder-recommender"
 import {
-  analyzeSnippetContent,
   extractAiRecommendations,
   hasProviderConfig,
   selectRelevantSegments,
@@ -76,6 +75,11 @@ import {
   saveKnowledgeWithMeta
 } from "~/src/services/knowledgeService"
 import { knowledgeStorage } from "~/src/services/knowledgeStorage"
+import {
+  analyzeAllCapturedSnippets,
+  analyzeCapturedSnippet,
+  updateCapturedSnippetTags
+} from "~/src/services/snippetService"
 import type { KnowledgeQuery, QuickSavePayload } from "~/src/types/knowledge"
 
 chrome.bookmarks.onCreated.addListener((_, node) => {
@@ -138,14 +142,14 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
         }
       )
     case "bookmarks-collector/analyze-captured-snippet":
-      return handleAnalyzeCapturedSnippet(
+      return analyzeCapturedSnippet(
         message.payload as {
           url: string
           snippetId: string
         }
       )
     case "bookmarks-collector/update-captured-snippet-tags":
-      return handleUpdateCapturedSnippetTags(
+      return updateCapturedSnippetTags(
         message.payload as {
           url: string
           snippetId: string
@@ -153,7 +157,7 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
         }
       )
     case "bookmarks-collector/analyze-all-captured-snippets":
-      return handleAnalyzeAllCapturedSnippets(
+      return analyzeAllCapturedSnippets(
         message.payload as {
           url: string
           force?: boolean
@@ -569,81 +573,6 @@ async function handleDeleteSnippetItem(
     collections,
     itemId: payload.itemId
   }
-}
-
-async function handleAnalyzeCapturedSnippet(payload: {
-  url: string
-  snippetId: string
-}): Promise<PageCaptureDraft> {
-  const draft = await getCaptureDraft(payload.url)
-  const target = draft.snippets.find(
-    (snippet) => snippet.id === payload.snippetId
-  )
-
-  if (!target) {
-    return draft
-  }
-
-  const settings = await getSettings()
-  const analysis = await analyzeSnippetContent(target.text, settings)
-
-  return updateCapturedSnippet(payload.url, payload.snippetId, (snippet) => ({
-    ...snippet,
-    analysisSummary: analysis.summary,
-    analysisTags: analysis.tags,
-    analysisUpdatedAt: new Date().toISOString()
-  }))
-}
-
-async function handleUpdateCapturedSnippetTags(payload: {
-  url: string
-  snippetId: string
-  tags: string[]
-}): Promise<PageCaptureDraft> {
-  const nextTags = payload.tags
-    .map((tag) => tag.trim())
-    .filter(Boolean)
-    .slice(0, 12)
-
-  return updateCapturedSnippet(payload.url, payload.snippetId, (snippet) => ({
-    ...snippet,
-    analysisTags: nextTags,
-    analysisUpdatedAt: new Date().toISOString()
-  }))
-}
-
-async function handleAnalyzeAllCapturedSnippets(payload: {
-  url: string
-  force?: boolean
-}): Promise<PageCaptureDraft> {
-  const draft = await getCaptureDraft(payload.url)
-  const settings = await getSettings()
-
-  let nextDraft = draft
-
-  for (const snippet of draft.snippets) {
-    if (
-      !payload.force &&
-      snippet.analysisSummary &&
-      snippet.analysisTags?.length
-    ) {
-      continue
-    }
-
-    const analysis = await analyzeSnippetContent(snippet.text, settings)
-    nextDraft = await updateCapturedSnippet(
-      payload.url,
-      snippet.id,
-      (current) => ({
-        ...current,
-        analysisSummary: analysis.summary,
-        analysisTags: analysis.tags,
-        analysisUpdatedAt: new Date().toISOString()
-      })
-    )
-  }
-
-  return nextDraft
 }
 
 async function notifyBookmarkCreated(url: string) {
