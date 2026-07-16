@@ -1,0 +1,31 @@
+src/background.ts
+  s_fc93eeb85355c2::t_a1379c49b37ac3 74,351-355
+src/services/knowledgeService.ts
+  s_ea6a09d6636d1d::t_36dd8bae8623d9 2,167-194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "335f1bb20a4b94f57eb204410c3642548f03eb29",
+  "prompts": {},
+  "sessions": {
+    "s_ea6a09d6636d1d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6984-b35d-70d1-a9d9-3b3cbf5cd916",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    },
+    "s_fc93eeb85355c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f697b-04be-78e0-ab90-91e8d93966ac",
+        "model": "unknown"
+      },
+      "human_author": "dodola <dodolalorc@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
