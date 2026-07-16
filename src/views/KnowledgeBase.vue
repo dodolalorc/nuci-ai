@@ -1,14 +1,12 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue"
 
+import {
+  KNOWLEDGE_MESSAGE,
+  sendKnowledgeMessage
+} from "../sdk/knowledgeMessages"
 import type { KnowledgeItem, KnowledgeQuery } from "../types/knowledge"
 import { KNOWLEDGE_CATEGORIES } from "../types/knowledge"
-
-async function sendMessage<T>(type: string, payload?: unknown): Promise<T> {
-  const response = await chrome.runtime.sendMessage({ type, payload })
-  if (!response?.ok) throw new Error(response?.error ?? "操作失败")
-  return response.payload as T
-}
 
 const items = ref<KnowledgeItem[]>([])
 const isLoading = ref(true)
@@ -31,8 +29,8 @@ const query = computed<KnowledgeQuery>(() => ({
 async function loadItems() {
   isLoading.value = true
   try {
-    items.value = await sendMessage<KnowledgeItem[]>(
-      "knowledge/list",
+    items.value = await sendKnowledgeMessage(
+      KNOWLEDGE_MESSAGE.list,
       query.value
     )
   } catch (e) {
@@ -57,7 +55,7 @@ function closeDetail() {
 }
 
 async function toggleFavorite(item: KnowledgeItem) {
-  await sendMessage("knowledge/update", {
+  await sendKnowledgeMessage(KNOWLEDGE_MESSAGE.update, {
     id: item.id,
     favorite: !item.favorite
   })
@@ -68,7 +66,7 @@ async function deleteItem(item: KnowledgeItem) {
   if (!confirm(`确认删除「${item.title}」？`)) return
   isDeleting.value = true
   try {
-    await sendMessage("knowledge/delete", { id: item.id })
+    await sendKnowledgeMessage(KNOWLEDGE_MESSAGE.remove, { id: item.id })
     items.value = items.value.filter((i) => i.id !== item.id)
     if (selectedItem.value?.id === item.id) selectedItem.value = null
   } catch (e) {
@@ -81,9 +79,10 @@ async function deleteItem(item: KnowledgeItem) {
 async function retryAi(item: KnowledgeItem) {
   isRetryingAi.value = true
   try {
-    const updated = await sendMessage<KnowledgeItem>("knowledge/retry-ai", {
+    const updated = await sendKnowledgeMessage(KNOWLEDGE_MESSAGE.retryAi, {
       id: item.id
     })
+    if (!updated) throw new Error("知识条目不存在")
     const index = items.value.findIndex((i) => i.id === item.id)
     if (index !== -1) items.value[index] = updated
     if (selectedItem.value?.id === item.id) selectedItem.value = updated

@@ -6,6 +6,7 @@ import {
   listBookmarks
 } from "~/src/sdk/bookmarks"
 import { recommendFolders } from "~/src/sdk/folder-recommender"
+import { KNOWLEDGE_MESSAGE } from "~/src/sdk/knowledgeMessages"
 import {
   extractAiRecommendations,
   hasProviderConfig,
@@ -225,11 +226,11 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
       )
 
     // ── Knowledge Base (new) ──────────────────────────────
-    case "knowledge/quick-save":
+    case KNOWLEDGE_MESSAGE.quickSave:
       return quickSaveKnowledge(message.payload as Partial<QuickSavePayload>)
-    case "knowledge/generate-quick-meta":
+    case KNOWLEDGE_MESSAGE.generateQuickMeta:
       return generateQuickMeta(message.payload as Partial<QuickSavePayload>)
-    case "knowledge/save-with-meta":
+    case KNOWLEDGE_MESSAGE.saveWithMeta:
       return saveKnowledgeWithMeta(
         message.payload as Partial<QuickSavePayload> & {
           summary?: string
@@ -237,28 +238,28 @@ async function handleMessage(message: { type: string; payload?: unknown }) {
           category?: string
         }
       )
-    case "knowledge/save-selection":
+    case KNOWLEDGE_MESSAGE.saveSelection:
       return saveKnowledgeSelection(message.payload as { selectedText: string })
-    case "knowledge/list":
+    case KNOWLEDGE_MESSAGE.list:
       return knowledgeStorage.list(message.payload as KnowledgeQuery)
-    case "knowledge/update":
+    case KNOWLEDGE_MESSAGE.update:
       return knowledgeStorage.update(
         (message.payload as { id: string }).id,
         pickKnowledgeUpdate(message.payload)
       )
-    case "knowledge/delete":
+    case KNOWLEDGE_MESSAGE.remove:
       return knowledgeStorage.delete((message.payload as { id: string }).id)
-    case "knowledge/retry-ai":
+    case KNOWLEDGE_MESSAGE.retryAi:
       return retryKnowledgeAi((message.payload as { id: string }).id)
-    case "knowledge/get-today-count":
+    case KNOWLEDGE_MESSAGE.getTodayCount:
       return knowledgeStorage.getTodayCount()
-    case "knowledge/get-recent":
+    case KNOWLEDGE_MESSAGE.getRecent:
       return knowledgeStorage.list({
         orderBy: "createdAt",
         orderDir: "desc",
         limit: (message.payload as { limit?: number })?.limit ?? 3
       })
-    case "knowledge/open-knowledge-base":
+    case KNOWLEDGE_MESSAGE.openKnowledgeBase:
       await handleOpenExtensionPage({ path: "tabs/manage.html#knowledge-base" })
       return { success: true }
 

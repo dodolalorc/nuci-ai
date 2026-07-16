@@ -153,6 +153,10 @@
 import { computed, onMounted, onUnmounted, ref } from "vue"
 
 import floatingBallIconUrl from "../contents/icon.png"
+import {
+  KNOWLEDGE_MESSAGE,
+  sendKnowledgeMessage
+} from "../sdk/knowledgeMessages"
 import type { SmartFavoritesSettings } from "../sdk/types"
 import { extractPageContent } from "../services/pageExtractor"
 import { KNOWLEDGE_CATEGORIES } from "../types/knowledge"
@@ -476,7 +480,10 @@ async function quickSave() {
   try {
     showToast("正在抓取网页...")
     showToast("正在整理内容...")
-    await sendMessage("knowledge/quick-save", extractPageContent())
+    await sendKnowledgeMessage(
+      KNOWLEDGE_MESSAGE.quickSave,
+      extractPageContent()
+    )
     saveSuccess.value = true
     showToast("已保存到知识库")
     window.setTimeout(() => {
@@ -501,11 +508,10 @@ async function deepSave() {
   isAiRunning.value = true
 
   try {
-    const result = await sendMessage<{
-      summary: string
-      tags: string[]
-      category: string
-    }>("knowledge/generate-quick-meta", extractPageContent())
+    const result = await sendKnowledgeMessage(
+      KNOWLEDGE_MESSAGE.generateQuickMeta,
+      extractPageContent()
+    )
     editSummary.value = result.summary
     editTagsStr.value = result.tags.join(", ")
     editCategory.value = result.category
@@ -529,11 +535,10 @@ async function regenAi() {
   isAiRunning.value = true
 
   try {
-    const result = await sendMessage<{
-      summary: string
-      tags: string[]
-      category: string
-    }>("knowledge/generate-quick-meta", extractPageContent())
+    const result = await sendKnowledgeMessage(
+      KNOWLEDGE_MESSAGE.generateQuickMeta,
+      extractPageContent()
+    )
     editSummary.value = result.summary
     editTagsStr.value = result.tags.join(", ")
     editCategory.value = result.category
@@ -559,7 +564,7 @@ async function confirmDeepSave() {
       .map((tag) => tag.trim())
       .filter(Boolean)
 
-    await sendMessage("knowledge/save-with-meta", {
+    await sendKnowledgeMessage(KNOWLEDGE_MESSAGE.saveWithMeta, {
       ...extractPageContent(),
       title: editTitle.value,
       summary: editSummary.value,
@@ -586,7 +591,7 @@ async function saveSelection() {
 
   isSaving.value = true
   try {
-    await sendMessage("knowledge/save-selection", {
+    await sendKnowledgeMessage(KNOWLEDGE_MESSAGE.saveSelection, {
       ...extractPageContent(),
       selectedText: selectionText.value
     })
@@ -600,7 +605,7 @@ async function saveSelection() {
 
 function openKnowledgeBase() {
   closeMenu()
-  chrome.runtime.sendMessage({ type: "knowledge/open-knowledge-base" })
+  void sendKnowledgeMessage(KNOWLEDGE_MESSAGE.openKnowledgeBase, undefined)
 }
 
 async function openSettings() {

@@ -4,6 +4,10 @@ import { createApp, reactive } from "vue"
 import "../ui/design-tokens.css"
 
 import PageCaptureOverlay from "../content-ui/PageCaptureOverlay.vue"
+import {
+  KNOWLEDGE_MESSAGE,
+  sendKnowledgeMessage
+} from "../sdk/knowledgeMessages"
 import { getProviderConfigNotice } from "../sdk/provider"
 import type {
   AiModelProfile,
@@ -299,7 +303,10 @@ const quickSaveToKnowledge = async () => {
   renderOverlay()
 
   try {
-    await sendMessage("knowledge/quick-save", extractPageContent())
+    await sendKnowledgeMessage(
+      KNOWLEDGE_MESSAGE.quickSave,
+      extractPageContent()
+    )
     state.status = "已保存到知识库。"
   } catch (error) {
     state.status =
